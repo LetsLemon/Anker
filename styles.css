@@ -157,6 +157,53 @@ body{
 .reward{text-align:center;padding:20px 0}
 .reward .ring{width:120px;height:120px;margin:6px auto;border-radius:50%;background:var(--teal-l);display:flex;align-items:center;justify-content:center;font-size:58px}
 
+/* Alltag erleichtern */
+.al-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.al-pill{flex:1 1 calc(50% - 8px);border:2px solid var(--line);background:var(--surface);border-radius:14px;padding:13px 10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;color:inherit}
+.al-pill.sel{border-color:var(--teal);background:var(--teal-l);color:var(--teal-d)}
+.al-block{margin-top:14px}
+.al-h{font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 2px 6px}
+.al-item{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 14px;font-size:14px;margin-top:6px;line-height:1.45}
+.al-item.teal{border-left:3px solid var(--teal)}
+.al-item.muted{color:var(--muted)}
+.al-steps{margin:14px 0 0;padding:0;list-style:none;counter-reset:al}
+.al-steps li{counter-increment:al;position:relative;padding:11px 14px 11px 46px;background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-top:8px;font-size:14px;line-height:1.5}
+.al-steps li::before{content:counter(al);position:absolute;left:12px;top:10px;width:24px;height:24px;border-radius:50%;background:var(--teal-l);color:var(--teal-d);font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.al-checks{margin-top:10px}
+.al-check{width:100%;display:flex;align-items:flex-start;gap:12px;text-align:left;background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:13px;margin-top:8px;cursor:pointer;font-family:inherit;color:inherit}
+.al-check .box{font-size:18px;color:var(--muted);line-height:1.35;flex:0 0 auto}
+.al-check b{display:block;font-size:14px;font-weight:600}
+.al-check small{display:block;font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4}
+.al-check.done{border-color:var(--teal);background:var(--teal-l)}
+.al-check.done .box{color:var(--teal)}
+.al-check.done b{text-decoration:line-through;opacity:.7}
+.al-field{margin-top:13px}
+.al-field label{display:block;font-size:13px;font-weight:700;margin-bottom:5px}
+.al-field textarea,.al-script{width:100%;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:11px;font-size:14px;font-family:inherit;color:inherit;resize:vertical;line-height:1.5}
+.al-field textarea:focus,.al-script:focus{outline:none;border-color:var(--teal)}
+.al-script{margin-top:10px}
+
+/* Verstehen (Psychoedukation) */
+.ver-card{width:100%;display:flex;align-items:flex-start;gap:13px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-top:9px;cursor:pointer;font-family:inherit;color:inherit;transition:transform .15s}
+.ver-card:active{transform:scale(.98)}
+.ver-card .vi{font-size:26px;line-height:1;flex:0 0 auto;margin-top:1px}
+.ver-card .vc-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ver-card b{font-size:14.5px;font-weight:700;line-height:1.3}
+.ver-card .teaser{font-size:12.5px;color:var(--muted);line-height:1.45}
+.ver-card .meta{font-size:11px;color:var(--muted);margin-top:2px}
+.ver-card.read{border-color:var(--teal)}
+.ver-card.read .vi{opacity:.85}
+.ver-dots{display:flex;gap:6px;justify-content:center;margin:2px 0 6px}
+.ver-dot{width:7px;height:7px;border-radius:50%;background:var(--line);transition:background .2s}
+.ver-dot.on{background:var(--teal)}
+.ver-list{margin:12px 0 0;padding:0;list-style:none}
+.ver-list li{position:relative;padding:9px 14px 9px 30px;background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-top:7px;font-size:13.5px;line-height:1.5}
+.ver-list li::before{content:"";position:absolute;left:13px;top:16px;width:6px;height:6px;border-radius:50%;background:var(--teal)}
+.ver-note{margin-top:14px;background:var(--lav-l);border-left:3px solid var(--lav);border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.55;color:var(--text)}
+.ver-take{margin-top:16px;display:flex;gap:10px;align-items:flex-start;background:var(--teal-l);border-radius:14px;padding:14px}
+.ver-take span{font-size:18px;line-height:1.3;flex:0 0 auto}
+.ver-take p{margin:0;font-size:13.5px;line-height:1.55;color:var(--teal-d);font-weight:600}
+
 /* breathing */
 .breath{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:320px;text-align:center}
 .bcircle{width:170px;height:170px;border-radius:50%;background:var(--teal-l);display:flex;align-items:center;justify-content:center;color:var(--teal-d);font-size:18px;font-weight:700;cursor:pointer}

@@ -1,11 +1,13 @@
 /* Anker · Service Worker – macht die App offline-fähig.
    Cache-Version bei Änderungen hochzählen (v1 -> v2 ...), damit Updates greifen. */
-const CACHE = "anker-v1";
+const CACHE = "anker-v3";
 const ASSETS = [
   "index.html",
   "styles.css",
   "app.js",
   "data/lessons.js",
+  "data/alltag.js",
+  "data/verstehen.js",
   "manifest.webmanifest",
   "icons/icon-192.png",
   "icons/icon-512.png",

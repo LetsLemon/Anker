@@ -76,6 +76,28 @@
       </div>
     </section>
 
+    <!-- ========== ALLTAG ========== -->
+    <section class="view" id="v-alltag">
+      <div class="sec-title">Alltag erleichtern</div>
+      <p class="muted" style="margin:2px 4px 0">Kleine Hilfen für den Tag. Nimm dir nur, was du gerade brauchst – nichts musst du.</p>
+      <div class="tool-grid" style="margin-top:12px">
+        <button class="tool" data-alltag="energy"><span class="ti">🔋</span><b>Tag nach Energie</b><span>Was ist heute dran?</span></button>
+        <button class="tool" data-alltag="transitions"><span class="ti">🔀</span><b>Übergänge</b><span>Sanft umschalten</span></button>
+        <button class="tool" data-alltag="tasks"><span class="ti">👣</span><b>Mini-Schritte</b><span>Aufgabe zerlegen</span></button>
+        <button class="tool" data-alltag="appointment"><span class="ti">📋</span><b>Termin vorbereiten</b><span>Weniger Unbekanntes</span></button>
+      </div>
+      <button class="btn lav" data-alltag="scripts">💬 Soziale Skripte · fertige Texte</button>
+      <div class="card">
+        <h3>Warum das hilft</h3>
+        <p>Hier geht es nicht darum, dich zu „optimieren". Es geht darum, Hürden kleiner zu machen, Überlastung vorzubeugen und dir das Formulieren abzunehmen, wenn Worte schwerfallen.</p>
+      </div>
+    </section>
+
+    <!-- ========== VERSTEHEN ========== -->
+    <section class="view" id="v-verstehen">
+      <div id="verContainer"></div>
+    </section>
+
     <!-- ========== ENERGIE ========== -->
     <section class="view" id="v-energy">
       <div class="sec-title">Burnout-Radar</div>
@@ -157,6 +179,8 @@
   <nav class="nav">
     <button class="on" data-go="pfad"><span class="ti">🧭</span>Pfad</button>
     <button data-go="calm"><span class="ti">🌬️</span>Beruhigen</button>
+    <button data-go="alltag"><span class="ti">🧰</span>Alltag</button>
+    <button data-go="verstehen"><span class="ti">💡</span>Verstehen</button>
     <button data-go="energy"><span class="ti">🔋</span>Energie</button>
     <button data-go="me"><span class="ti">🙂</span>Ich</button>
   </nav>
@@ -164,6 +188,8 @@
 </div>
 
 <script src="data/lessons.js"></script>
+<script src="data/alltag.js"></script>
+<script src="data/verstehen.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

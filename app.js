@@ -16,6 +16,8 @@ const defaultState = () => ({
   log: {},             // "YYYY-MM-DD" -> { energy, akku, warn:[] }
   activeDays: [],      // Liste der Tage mit Aktivität (sanfte Serie)
   lowDemand: { date:null },
+  alltag: {},          // gespeicherte Alltags-Daten (z. B. Termin-Vorbereitung)
+  read: {},            // Verstehen: cardId -> true (rein informativ, kein Streak/Zwang)
   profile: null
 });
 let state = load();
@@ -41,7 +43,7 @@ function markActive(){
 }
 
 /* ---------- Navigation ---------- */
-const VIEWS = { pfad:"v-pfad", calm:"v-calm", energy:"v-energy", me:"v-me" };
+const VIEWS = { pfad:"v-pfad", calm:"v-calm", alltag:"v-alltag", verstehen:"v-verstehen", energy:"v-energy", me:"v-me" };
 function go(v, btn){
   $$(".view").forEach(e=>e.classList.remove("active"));
   $("#"+VIEWS[v]).classList.add("active");
@@ -52,7 +54,7 @@ function go(v, btn){
 $$(".nav button").forEach(b=> b.addEventListener("click", ()=> go(b.dataset.go, b)));
 
 /* ---------- Energie (heute) ---------- */
-const eMap = { voll:"Viel 🔋", mittel:"Mittel", wenig:"Wenig", leer:"Leer 🪫" };
+const eMap = { voll:"Viel 🔋", mittel:"Mittel", wenig:"Wenig", leer:"Leer" };
 const eSub = {
   voll:"Heute ist Raum für etwas Neues – wenn du magst.",
   mittel:"Such dir eine kleine Sache aus. Reicht völlig.",
@@ -382,6 +384,223 @@ $("#resetBtn").addEventListener("click", ()=>{
   }
 });
 
+/* ---------- Alltag erleichtern (Säule 2) ---------- */
+const AL = window.ANKER_ALLTAG || {};
+function esc(s){ return String(s==null?"":s).replace(/[&<>]/g, c=> ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+function alFootClose(){
+  ovFoot.innerHTML = '<button class="btn ghost" data-close>Schließen</button>';
+  $("[data-close]", ovFoot).addEventListener("click", closeOverlay);
+}
+
+/* 1) Tag nach Energie */
+function alEnergy(){
+  openOverlay("Tag nach Energie", false);
+  renderAlEnergy(todayLog().energy);
+}
+function renderAlEnergy(sel){
+  const E = AL.energy;
+  let html = '<p class="muted">'+E.intro+'</p><div class="al-pills">'+
+    Object.keys(E.levels).map(k=>{
+      const L = E.levels[k];
+      return '<button class="al-pill'+(k===sel?" sel":"")+'" data-al-e="'+k+'">'+L.emoji+' '+L.label+'</button>';
+    }).join('')+'</div>';
+  if(sel && E.levels[sel]){
+    const L = E.levels[sel];
+    html += '<div class="lead" style="margin-top:18px">'+L.head+'</div>'+
+      alList("Heute ist okay", L.okay, "teal")+
+      alList("Darf warten", L.wait, "muted")+
+      '<div class="card"><p style="color:var(--text)">⚓ '+L.anchor+'</p></div>';
+  }
+  ovBody.innerHTML = html;
+  $$("[data-al-e]", ovBody).forEach(b=> b.addEventListener("click", ()=>{
+    const k = b.dataset.alE;
+    todayLog().energy = k; markActive(); save();
+    paintEnergy(); renderBars(); renderStreak();
+    renderAlEnergy(k);
+  }));
+  alFootClose();
+}
+function alList(title, arr, tone){
+  if(!arr || !arr.length) return "";
+  return '<div class="al-block"><div class="al-h">'+title+'</div>'+
+    arr.map(x=>'<div class="al-item '+(tone||"")+'">'+x+'</div>').join('')+'</div>';
+}
+
+/* 2) Übergänge */
+function alTransitions(){ openOverlay("Übergänge", false); alTransitionsList(); }
+function alTransitionsList(){
+  ovBody.innerHTML = '<p class="muted">Ein Wechsel ist anstrengend. Wähle einen – wir gehen ihn in kleinen Stücken.</p>'+
+    AL.transitions.map((t,i)=>'<button class="qopt" data-al-t="'+i+'">'+t.icon+'  '+t.title+'</button>').join('');
+  $$("[data-al-t]", ovBody).forEach(b=> b.addEventListener("click", ()=> alTransitionDetail(+b.dataset.alT)));
+  alFootClose();
+}
+function alTransitionDetail(i){
+  const t = AL.transitions[i];
+  ovBody.innerHTML = '<div class="big-emoji">'+t.icon+'</div>'+
+    '<div class="lead" style="text-align:center">'+t.title+'</div>'+
+    '<p class="muted">'+t.lead+'</p>'+
+    '<ol class="al-steps">'+t.steps.map(s=>'<li>'+s+'</li>').join('')+'</ol>'+
+    '<div class="card"><p style="color:var(--text)">'+t.closer+'</p></div>';
+  ovFoot.innerHTML = '<button class="btn ghost" data-back>‹ Andere wählen</button>';
+  $("[data-back]", ovFoot).addEventListener("click", alTransitionsList);
+}
+
+/* 3) Aufgabe in Mini-Schritte */
+function alTasks(){ openOverlay("Mini-Schritte", false); alTasksList(); }
+function alTasksList(){
+  ovBody.innerHTML = '<p class="muted">Große Aufgaben fühlen sich oft unmöglich an. Wähle eine – ich zerlege sie in winzige Schritte.</p>'+
+    AL.tasks.map((t,i)=>'<button class="qopt" data-al-k="'+i+'">'+t.icon+'  '+t.title+'</button>').join('');
+  $$("[data-al-k]", ovBody).forEach(b=> b.addEventListener("click", ()=> alTaskDetail(+b.dataset.alK)));
+  alFootClose();
+}
+function alTaskDetail(i){
+  const t = AL.tasks[i];
+  ovBody.innerHTML = '<div class="lead">'+t.icon+' '+t.title+'</div>'+
+    '<p class="muted">Tippe jeden Schritt an, wenn du ihn hast. Kein Zeitdruck.</p>'+
+    '<div class="al-checks">'+t.steps.map((s,j)=>
+      '<button class="al-check" data-al-step="'+j+'"><span class="box">○</span><span><b>'+s.t+'</b>'+(s.n?'<small>'+s.n+'</small>':"")+'</span></button>'
+    ).join('')+'</div>'+
+    '<div class="card"><p style="color:var(--text)">'+t.closer+'</p></div>';
+  ovFoot.innerHTML = '<button class="btn ghost" data-back>‹ Andere wählen</button>';
+  $$("[data-al-step]", ovBody).forEach(b=> b.addEventListener("click", ()=>{
+    b.classList.toggle("done");
+    $(".box", b).textContent = b.classList.contains("done") ? "●" : "○";
+  }));
+  $("[data-back]", ovFoot).addEventListener("click", alTasksList);
+}
+
+/* 4) Termin vorbereiten */
+function alAppointment(){
+  openOverlay("Termin vorbereiten", false);
+  const A = AL.appointment;
+  const saved = (state.alltag && state.alltag.appointment) || {};
+  ovBody.innerHTML = '<p class="muted">'+A.intro+'</p>'+
+    A.fields.map(f=>
+      '<div class="al-field"><label>'+f.label+'</label>'+
+      '<textarea data-al-f="'+f.key+'" rows="2" placeholder="'+esc(f.hint)+'">'+esc(saved[f.key])+'</textarea></div>'
+    ).join('')+
+    '<div class="card"><p style="color:var(--text)">'+A.closer+'</p></div>';
+  ovFoot.innerHTML = '<button class="btn" data-save>Speichern</button>'+
+    '<button class="btn ghost" data-close style="margin-top:8px">Schließen</button>';
+  $("[data-save]", ovFoot).addEventListener("click", ()=>{
+    if(!state.alltag) state.alltag = {};
+    const obj = {};
+    $$("[data-al-f]", ovBody).forEach(t=> obj[t.dataset.alF] = t.value);
+    state.alltag.appointment = obj;
+    markActive(); save();
+    const btn = $("[data-save]", ovFoot);
+    btn.textContent = "Gespeichert ✓";
+    setTimeout(()=>{ const b=$("[data-save]", ovFoot); if(b) b.textContent = "Speichern"; }, 1500);
+  });
+  $("[data-close]", ovFoot).addEventListener("click", closeOverlay);
+}
+
+/* 5) Soziale Skripte */
+function alScripts(){ openOverlay("Soziale Skripte", false); alScriptsList(); }
+function alScriptsList(){
+  ovBody.innerHTML = '<p class="muted">Fertige Texte zum Kopieren. Du darfst sie anpassen, bevor du sie verschickst.</p>'+
+    AL.scripts.map((s,i)=>'<button class="qopt" data-al-s="'+i+'">'+s.icon+'  '+s.title+'</button>').join('');
+  $$("[data-al-s]", ovBody).forEach(b=> b.addEventListener("click", ()=> alScriptDetail(+b.dataset.alS)));
+  alFootClose();
+}
+function alScriptDetail(i){
+  const s = AL.scripts[i];
+  ovBody.innerHTML = '<div class="lead">'+s.icon+' '+s.title+'</div>'+
+    '<p class="muted">Anpassen, was du brauchst – dann kopieren.</p>'+
+    '<textarea class="al-script" id="alScriptText" rows="6">'+esc(s.text)+'</textarea>';
+  ovFoot.innerHTML = '<button class="btn" data-copy>Text kopieren</button>'+
+    '<button class="btn ghost" data-back style="margin-top:8px">‹ Andere wählen</button>';
+  $("[data-copy]", ovFoot).addEventListener("click", ()=>{
+    copyText($("#alScriptText").value).then(ok=>{
+      const btn = $("[data-copy]", ovFoot); if(!btn) return;
+      btn.textContent = ok ? "Kopiert ✓" : "Markiert · mit Strg+C kopieren";
+      setTimeout(()=>{ const b=$("[data-copy]", ovFoot); if(b) b.textContent = "Text kopieren"; }, 1800);
+    });
+  });
+  $("[data-back]", ovFoot).addEventListener("click", alScriptsList);
+}
+function copyText(txt){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(txt).then(()=>true).catch(()=> fallbackCopy());
+  }
+  return Promise.resolve(fallbackCopy());
+}
+function fallbackCopy(){
+  try{
+    const ta = $("#alScriptText");
+    if(ta){ ta.focus(); ta.select(); return document.execCommand("copy"); }
+  }catch(e){}
+  return false;
+}
+
+$$("[data-alltag]").forEach(b=> b.addEventListener("click", ()=>{
+  const m = b.dataset.alltag;
+  if(m==="energy") alEnergy();
+  else if(m==="transitions") alTransitions();
+  else if(m==="tasks") alTasks();
+  else if(m==="appointment") alAppointment();
+  else if(m==="scripts") alScripts();
+}));
+
+/* ---------- Verstehen (Säule 3 · Psychoedukation) ---------- */
+const VER = window.ANKER_VERSTEHEN || { intro:"", groups:[] };
+function isRead(id){ return !!(state.read && state.read[id]); }
+function markRead(id){ if(!state.read) state.read = {}; state.read[id] = true; save(); }
+
+function renderVerstehen(){
+  const wrap = $("#verContainer");
+  if(!wrap) return;
+  wrap.innerHTML = '<div class="sec-title">Verstehen</div>'+
+    '<p class="muted" style="margin:2px 4px 0">'+VER.intro+'</p>';
+  VER.groups.forEach((g, gi)=>{
+    const t = document.createElement("div");
+    t.className = "sec-title"; t.textContent = g.title;
+    wrap.appendChild(t);
+    g.cards.forEach((c, ci)=>{
+      const b = document.createElement("button");
+      b.className = "ver-card" + (isRead(c.id) ? " read" : "");
+      b.innerHTML =
+        '<span class="vi">'+c.icon+'</span>'+
+        '<span class="vc-main"><b>'+c.title+'</b>'+
+        '<span class="teaser">'+c.teaser+'</span>'+
+        '<span class="meta">'+c.minutes+' Min · in deinem Tempo'+(isRead(c.id)?' · gelesen ✓':'')+'</span></span>';
+      b.addEventListener("click", ()=> openVerCard(gi, ci));
+      wrap.appendChild(b);
+    });
+  });
+}
+
+let verCard = null, vPages = [], vi = 0;
+function openVerCard(gi, ci){
+  verCard = VER.groups[gi].cards[ci];
+  vPages = verCard.pages; vi = 0;
+  openOverlay(verCard.title, false);
+  renderVerPage();
+}
+function renderVerPage(){
+  const p = vPages[vi];
+  const last = vi === vPages.length-1;
+  let html = '<div class="ver-dots">'+vPages.map((_,k)=>'<span class="ver-dot'+(k<=vi?" on":"")+'"></span>').join('')+'</div>';
+  if(vi===0) html += '<div class="big-emoji">'+verCard.icon+'</div>';
+  html += '<div class="lead">'+p.lead+'</div>';
+  if(p.body) html += '<p class="muted">'+p.body+'</p>';
+  if(p.list) html += '<ul class="ver-list">'+p.list.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+  if(p.note) html += '<div class="ver-note">'+p.note+'</div>';
+  if(last && verCard.takeaway) html += '<div class="ver-take"><span>⚓</span><p>'+verCard.takeaway+'</p></div>';
+  ovBody.innerHTML = html;
+  ovBody.scrollTop = 0;
+
+  let foot = '<button class="btn" data-vnext>'+(last?"Fertig":"Weiter")+'</button>';
+  if(vi>0) foot += '<button class="btn ghost" data-vback style="margin-top:8px">Zurück</button>';
+  ovFoot.innerHTML = foot;
+  $("[data-vnext]", ovFoot).addEventListener("click", ()=>{
+    if(last){ markRead(verCard.id); closeOverlay(); renderVerstehen(); }
+    else { vi++; renderVerPage(); }
+  });
+  const vb = $("[data-vback]", ovFoot);
+  if(vb) vb.addEventListener("click", ()=>{ vi--; renderVerPage(); });
+}
+
 /* ---------- Start ---------- */
 function initSettingsDefaults(){
   // Beim ersten Start System-Einstellungen respektieren
@@ -397,6 +616,7 @@ function initAll(){
   applyTheme(); applyMotion(); paintSwitches();
   paintEnergy(); renderStreak();
   renderPath();
+  renderVerstehen();
   paintAmp(); renderBars(); renderWarn(); paintLowDemand();
   renderProfile(); renderAchievements();
   save();
