@@ -101,4 +101,102 @@ Diese PWA ist auf dem Handy praktisch wie eine native App. Wenn du irgendwann in
 
 ---
 
-*Anker · v1.0 · mit Sorgfalt gebaut 🌱*
+## 7) Burnout-Prädiktor · wie das Modell funktioniert
+
+Der Prädiktor läuft vollständig lokal im Browser – kein Server, keine Cloud.
+
+### Signale
+Jeden Tag erfasst die App bis zu 9 Signale (alles optional außer dem Akku-Check):
+
+| Signal | Eingabe | Bedeutung |
+|---|---|---|
+| Akku (Ampel) | Grün / Gelb / Rot | Subjektives Energieniveau |
+| Energie | Viel / Mittel / Wenig / Leer | Aus dem Pfad-Tab |
+| Schlaf · Dauer | ≤4h … ≥9h | Schlafdauer in Stunden |
+| Schlaf · Qualität | 1–5 | Erholungswert |
+| Reizlast | 1–5 | Sensorische + kognitive Überstimulation |
+| Soziale Last | 1–5 | Erschöpfung durch sozialen Aufwand |
+| Masking-Zeit | 0–8h+ | Stunden aktiven Maskings |
+| Stress | 1–5 | Allgemeines Stresslevel |
+| Frühwarnzeichen | Chips | Anzahl aktiver Warnzeichen |
+
+### Berechnungsschritte
+
+1. **Baseline** – Welford-Online-Algorithmus berechnet für jedes Signal rollierenden Mittelwert + Standardabweichung aus den letzten 120 Nicht-Crash-Tagen.
+
+2. **Tages-Belastungs-Score** – Jedes Signal wird in z-Scores umgerechnet (Abweichung von der persönlichen Baseline). Alle Scores werden gewichtet gemittelt → Belastung 0–1 pro Tag.
+
+3. **Allostatic Load** – Kumulierter Akkumulator: `load = load × 0.84 + tagesBelastung`. Der Faktor 0.84 entspricht einer Halbwertszeit von ~4 Tagen. Erholung baut automatisch ab.
+
+4. **Trend** – Lineare Regression der letzten 14 Tages-Scores. Positive Steigung = Belastung wächst.
+
+5. **Risiko-Score 0–100** – Load (max 70 Punkte) + Trend-Bonus/Malus (max ±30 Punkte).
+
+6. **Projektion** – „Risiko steigt in ~X Tagen ins Rote": Wenn Steigung > 0.7 Punkte/Tag und aktueller Score < 78, wird extrapoliert.
+
+7. **Treiber** – Die 4 Signale mit der größten positiven z-Score-Abweichung heute werden als Haupttreiber angezeigt.
+
+### Online-Lernen (Personalisierung)
+
+Wenn du einen Tag als „Crash-/Burnout-Tag" markierst, führt die App einen Gradient-Update-Schritt durch:
+
+- **Positive Beispiele**: der Crash-Tag + Vortag (Vorzeichen-Tage).
+- **Negative Beispiele**: 18 zufällige normale Tage.
+- **Formel**: `w_k += 0.1 × (target − sigmoid(w_k × z_k)) × z_k`
+
+Mit der Zeit lernt das Modell, welche Signalkombinationen bei *dieser Person* Vorboten eines Crashs sind. Das „🧠 Personalisiert"-Badge erscheint, sobald ≥ 3 Gewichte angepasst wurden.
+
+---
+
+## 8) Garmin Connect · Import
+
+### So exportierst du
+
+1. Auf **connect.garmin.com** einloggen → **Konto** → **Daten exportieren**.
+2. Bulk-Export als ZIP herunterladen. Die relevanten Dateien sind z. B.:
+   - `DailyStressDetails_*.json` → Stress + Body Battery
+   - `SleepData_*.json` → Schlaf
+   - `WellnessActivities_*.csv` → kombinierte Tageswerte
+3. Einzelne CSV- oder JSON-Datei im Energie-Tab über **📂 Garmin-Datei importieren** einlesen.
+
+### Was gemappt wird
+
+| Garmin-Feld | Anker-Feld | Logik |
+|---|---|---|
+| Body Battery (End of Day) | akku | ≥65 → Grün, ≥40 → Gelb, <40 → Rot |
+| Sleep Time (Sekunden) | sleepH | geteilt durch 3600 |
+| Sleep Score | sleepQ | geteilt durch 20, gerundet auf 1–5 |
+| Average Stress Level (0–100) | stress | `1 + wert/25`, gerundet auf 1–5 |
+| Avg Overnight HRV | garminHRV | nur gespeichert, noch nicht direkt gewertet |
+| Resting Heart Rate (bpm) | garminHR | nur gespeichert |
+
+Manuell eingegebene Werte haben Vorrang – bereits eingetragene Felder werden durch den Import **nicht** überschrieben.
+
+### Live-Sync (nicht implementiert)
+
+Eine Echtzeit-Anbindung erfordert:
+- Registrierung als Garmin Health API Partner (kostenlos, aber Formular-Genehmigung)
+- Backend-Server für OAuth-Handshake + Webhook-Empfang
+- Regelmäßiger Pull oder Push-Notification von Garmin
+
+Einstiegspunkt im Code: `ANKER_PRED.importGarmin()` in `data/predictor.js` – die gleiche Funktion verarbeitet dann die API-Antwort statt einer Datei. Das `state.log`-Format ist quellen-agnostisch.
+
+---
+
+```
+anker/
+├─ index.html              App-Hülle (5 Tabs)
+├─ styles.css              Design (Dunkelmodus, weiche Farben, Reduce-Motion)
+├─ app.js                  Logik: Prädiktor, Fortschritt, Energie, Speichern
+├─ data/predictor.js       👉 Burnout-Prädiktor-Modell (neu)
+├─ data/lessons.js         Inhalte – hier neue Lektionen ergänzen
+├─ data/alltag.js          Alltags-Hilfen
+├─ data/verstehen.js       Psychoedukation
+├─ manifest.webmanifest    macht es zur installierbaren App
+├─ service-worker.js       Offline-Funktion
+├─ icons/                  App-Icons
+├─ serve.ps1               lokaler Test-Server
+└─ README.md               diese Datei
+```
+
+*Anker · v2.0 · mit Sorgfalt gebaut 🌱*

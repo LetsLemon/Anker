@@ -19,7 +19,8 @@ const defaultState = () => ({
   alltag: {},          // gespeicherte Alltags-Daten (z. B. Termin-Vorbereitung)
   read: {},            // Verstehen: cardId -> true (rein informativ, kein Streak/Zwang)
   customWarns: [],     // selbst hinzugefügte Frühwarnzeichen
-  profile: null        // wird beim ersten Bearbeiten zu { name, subtitle, strengths, triggers, helps }
+  profile: null,       // wird beim ersten Bearbeiten zu { name, subtitle, strengths, triggers, helps }
+  predictor: null      // { baseline, weights, lastUpdated } – Burnout-Prädiktor-Zustand
 });
 let state = load();
 
@@ -35,7 +36,11 @@ function save(){
 }
 function todayLog(){
   const d = todayKey();
-  if(!state.log[d]) state.log[d] = { energy:null, akku:null, warn:[] };
+  if(!state.log[d]) state.log[d] = {
+    energy:null, akku:null, warn:[],
+    sleepH:null, sleepQ:null, irritation:null,
+    socialLoad:null, maskingH:null, stress:null, isCrash:false
+  };
   return state.log[d];
 }
 function markActive(){
@@ -65,7 +70,7 @@ const eSub = {
 function setEnergy(k){
   todayLog().energy = k;
   markActive(); save();
-  paintEnergy(); renderStreak(); renderBars();
+  paintEnergy(); renderStreak(); renderEnergyTab();
 }
 function paintEnergy(){
   const k = todayLog().energy;
@@ -278,68 +283,256 @@ function paintAmp(){
 $$(".amp").forEach(el=> el.addEventListener("click", ()=>{
   todayLog().akku = el.dataset.amp;
   markActive(); save();
-  paintAmp(); renderStreak(); renderBars();
+  paintAmp(); renderStreak(); renderEnergyTab();
 }));
 
-/* ---------- 7-Tage-Verlauf ---------- */
-function renderBars(){
-  const bars = $("#bars"); bars.innerHTML = "";
-  const days = ["So","Mo","Di","Mi","Do","Fr","Sa"];
-  const ampH = { g:85, y:55, r:28 };
-  const enH  = { voll:90, mittel:60, wenig:35, leer:18 };
-  let any = false;
-  for(let k=6; k>=0; k--){
-    const d = new Date(); d.setDate(d.getDate()-k);
-    const key = d.toISOString().slice(0,10);
-    const rec = state.log[key];
-    let h = 0;
-    if(rec){
-      if(rec.akku) h = ampH[rec.akku];
-      else if(rec.energy) h = enH[rec.energy];
-      if(h) any = true;
-    }
-    const bar = document.createElement("div");
-    bar.className = "bar";
-    bar.innerHTML = '<i style="height:'+h+'%"></i><small>'+days[d.getDay()]+'</small>';
-    bars.appendChild(bar);
-  }
-  $("#barsNote").style.display = any ? "none" : "block";
+/* ---------- Burnout-Prädiktor · Energie-Tab ---------- */
+let _chartDays = 7;
+let _mehrOpen  = false;
+
+function ensurePredictor(){
+  if(!state.predictor || typeof state.predictor !== "object")
+    state.predictor = { baseline:{}, weights:{}, lastUpdated:null };
 }
 
-/* ---------- Frühwarnzeichen ---------- */
-function renderWarn(){
-  const wEl = $("#warn"); wEl.innerHTML = "";
-  const sel = todayLog().warn || [];
-  const custom = Array.isArray(state.customWarns) ? state.customWarns : [];
-  DATA.warnSigns.concat(custom).forEach(w=>{
-    const b = document.createElement("button");
-    b.className = "wc" + (sel.includes(w) ? " on" : "");
-    b.textContent = w;
-    b.addEventListener("click", ()=>{
-      const arr = todayLog().warn;
-      const i = arr.indexOf(w);
-      if(i>=0) arr.splice(i,1); else arr.push(w);
-      b.classList.toggle("on");
-      markActive(); save();
-    });
-    wEl.appendChild(b);
-  });
-  // freie Option: eigenes Zeichen hinzufügen
-  const add = document.createElement("div");
-  add.className = "warn-add";
-  add.innerHTML = '<input type="text" id="warnAddInput" placeholder="Eigenes …" aria-label="Eigenes Frühwarnzeichen">'+
-    '<button id="warnAddBtn" type="button" aria-label="hinzufügen">+</button>';
-  wEl.appendChild(add);
+function rebuildPredBaseline(){
+  ensurePredictor();
+  const PRED = window.ANKER_PRED;
+  if(!PRED) return;
+  state.predictor.baseline = PRED.rebuildBaseline(state.log);
+}
+
+function renderEnergyTab(){
+  rebuildPredBaseline();
+  renderPredCard();
+  renderPredChart(_chartDays);
+  renderPredPatterns();
+  _updateMehrHint();
+}
+
+function renderPredPatterns(){
+  const el = $("#predPatterns"); if(!el) return;
+  const PRED = window.ANKER_PRED; if(!PRED){ el.innerHTML = ""; return; }
+  ensurePredictor();
+  const pats = PRED.detectPatterns(state.log, state.predictor);
+  if(!pats.length){
+    el.innerHTML = '<p class="pred-empty">Wenn du ein paar Wochen Daten gesammelt hast, erkenne ich hier wiederkehrende Muster – z. B. schwierige Wochentage oder deine typischen Vorboten.</p>';
+    return;
+  }
+  el.innerHTML = pats.map(p =>
+    '<div class="pred-pattern '+(p.tone||"")+'"><span class="pp-ic">'+p.icon+'</span><p>'+esc(p.text)+'</p></div>'
+  ).join('');
+}
+
+function _updateMehrHint(){
+  const hint = $("#mehrHint"); if(!hint) return;
+  const energy = todayLog().energy;
+  if(energy === "voll" || energy === "mittel")
+    hint.textContent = "– du hast heute mehr Energie";
+  else
+    hint.textContent = "";
+}
+
+/* Mehr-eintragen-Toggle */
+$("#mehrBtn").addEventListener("click", ()=>{
+  _mehrOpen = !_mehrOpen;
+  const btn  = $("#mehrBtn");
+  const form = $("#mehrForm");
+  btn.classList.toggle("open", _mehrOpen);
+  btn.firstChild.textContent = (_mehrOpen ? "▲" : "▼") + " Mehr eintragen ";
+  if(_mehrOpen){ renderMehrForm(); form.style.maxHeight = "none"; }
+  else { form.innerHTML = ""; form.style.maxHeight = "0"; }
+});
+
+function renderMehrForm(){
+  const form = $("#mehrForm"); if(!form) return;
+  const rec  = todayLog();
+
+  function sigRow(label, field, opts){
+    const cur  = rec[field];
+    const btns = opts.map(([v,l]) =>
+      `<button class="sigb${+v===+cur||v===cur?" sel":""}" data-sig="${field}" data-val="${v}">${l}</button>`
+    ).join("");
+    return `<div class="sig-row"><div class="sig-label">${label}</div><div class="sig-btns">${btns}</div></div>`;
+  }
+
+  let html = sigRow("Schlaf · Dauer", "sleepH",
+    [[3.5,"≤4h"],[5,"5h"],[6,"6h"],[7,"7h"],[8,"8h"],[9.5,"≥9h"]]);
+  html += sigRow("Schlaf · Qualität", "sleepQ",
+    [[1,"😴 Schlecht"],[2,"😕"],[3,"😐 Ok"],[4,"🙂"],[5,"😊 Gut"]]);
+  html += sigRow("Reizlast heute", "irritation",
+    [[1,"Gering"],[2,"Leicht"],[3,"Mittel"],[4,"Hoch"],[5,"Extrem"]]);
+  html += sigRow("Soziale Last", "socialLoad",
+    [[1,"Kaum"],[2,"Etwas"],[3,"Mittel"],[4,"Viel"],[5,"Erschöpft"]]);
+  html += sigRow("Masking-Zeit", "maskingH",
+    [[0,"0h"],[2,"~2h"],[4,"~4h"],[6,"~6h"],[9,"8h+"]]);
+  html += sigRow("Stress heute", "stress",
+    [[1,"Gering"],[2,"Leicht"],[3,"Mittel"],[4,"Hoch"],[5,"Extrem"]]);
+
+  // Frühwarnzeichen
+  const allWarns = DATA.warnSigns.concat(Array.isArray(state.customWarns) ? state.customWarns : []);
+  const selWarns = rec.warn || [];
+  const chips = allWarns.map(w =>
+    `<button class="wc${selWarns.includes(w)?" on":""}" data-warn="${encodeURIComponent(w)}">${esc(w)}</button>`
+  ).join("");
+  html += `<div class="warn-section">
+    <div class="sig-label">Frühwarnzeichen</div>
+    <div class="warnchips">
+      ${chips}
+      <div class="warn-add">
+        <input type="text" id="warnAddInput" placeholder="Eigenes …" aria-label="Eigenes Frühwarnzeichen">
+        <button id="warnAddBtn" type="button" aria-label="hinzufügen">+</button>
+      </div>
+    </div>
+  </div>`;
+
+  // Crash-Tag-Markierung
+  const isCrash = !!rec.isCrash;
+  html += `<button class="crash-btn${isCrash?" on":""}" id="crashBtn">
+    ⚡ ${isCrash?"Crash-/Burnout-Tag markiert · tippen zum Aufheben":"Heute war ein Crash- / Burnout-Tag"}
+  </button>`;
+
+  form.innerHTML = html;
+
+  // Signal-Buttons verdrahten (form bleibt offen, nur predCard + chart neu)
+  $$("[data-sig]", form).forEach(b => b.addEventListener("click", ()=>{
+    const field = b.dataset.sig;
+    const raw   = b.dataset.val;
+    todayLog()[field] = isNaN(parseFloat(raw)) ? raw : parseFloat(raw);
+    markActive(); save();
+    $$(`[data-sig="${field}"]`, form).forEach(x => x.classList.toggle("sel", x === b));
+    rebuildPredBaseline(); renderPredCard(); renderPredChart(_chartDays);
+  }));
+
+  // Warn-Chips
+  $$("[data-warn]", form).forEach(b => b.addEventListener("click", ()=>{
+    const w   = decodeURIComponent(b.dataset.warn);
+    const arr = todayLog().warn;
+    const i   = arr.indexOf(w); if(i >= 0) arr.splice(i,1); else arr.push(w);
+    b.classList.toggle("on");
+    markActive(); save();
+    rebuildPredBaseline(); renderPredCard(); renderPredChart(_chartDays);
+  }));
+
+  // Custom Warn hinzufügen
   const doAdd = ()=>{
-    const inp = $("#warnAddInput"); const v = inp.value.trim();
-    if(!v) return;
+    const inp = $("#warnAddInput", form); const v = inp.value.trim(); if(!v) return;
     if(!Array.isArray(state.customWarns)) state.customWarns = [];
     if(!state.customWarns.includes(v) && !DATA.warnSigns.includes(v)) state.customWarns.push(v);
-    if(!todayLog().warn.includes(v)) todayLog().warn.push(v);
-    markActive(); save(); renderWarn();
+    const arr = todayLog().warn; if(!arr.includes(v)) arr.push(v);
+    markActive(); save(); renderMehrForm();
   };
-  $("#warnAddBtn").addEventListener("click", doAdd);
-  $("#warnAddInput").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); doAdd(); } });
+  const wab = $("#warnAddBtn", form); if(wab) wab.addEventListener("click", doAdd);
+  const wai = $("#warnAddInput", form);
+  if(wai) wai.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); doAdd(); } });
+
+  // Crash-Btn
+  const cb = $("#crashBtn", form);
+  if(cb) cb.addEventListener("click", ()=>{
+    const rec2   = todayLog();
+    rec2.isCrash = !rec2.isCrash;
+    if(rec2.isCrash){
+      const PRED = window.ANKER_PRED;
+      if(PRED){
+        ensurePredictor();
+        state.predictor.weights = PRED.learnFromCrash(state.log, state.predictor, todayKey());
+      }
+    }
+    markActive(); save();
+    cb.className = "crash-btn" + (rec2.isCrash ? " on" : "");
+    cb.innerHTML = `⚡ ${rec2.isCrash?"Crash-/Burnout-Tag markiert · tippen zum Aufheben":"Heute war ein Crash- / Burnout-Tag"}`;
+    rebuildPredBaseline(); renderPredCard(); renderPredChart(_chartDays);
+  });
+}
+
+/* Risiko-Karte rendern */
+function renderPredCard(){
+  const el = $("#predCard"); if(!el) return;
+  ensurePredictor();
+  const PRED = window.ANKER_PRED;
+  if(!PRED){ el.innerHTML = ""; return; }
+
+  const dateCount = Object.values(state.log).filter(r => r && (r.akku || r.energy)).length;
+  if(dateCount < 2){
+    el.innerHTML = '<p class="pred-empty">Fülle den Tages-Check einige Tage aus – dann berechnet sich dein persönliches Risikoprofil automatisch. 📊</p>';
+    return;
+  }
+
+  const risk = PRED.computeRisk(state.log, state.predictor);
+  const { score, level, drivers, projDays, slope } = risk;
+
+  const LVNAME  = { ok:"Entspannt", low:"Leicht erhöht", medium:"Mittelhoch", high:"Hoch", critical:"Kritisch" };
+  const RECS    = {
+    ok:       "Dein Akku erholt sich. Nutze diese Phase – aber überlade nicht.",
+    low:      "Belastung leicht über deiner Baseline. Auf Signale achten.",
+    medium:   "Zurückfahren empfohlen. Low-Demand-Tag erwägen.",
+    high:     "Schutzmodus. Nicht-Essenzielles streichen, Erholung priorisieren.",
+    critical: "Klares Stopp-Signal. Nur das Nötigste – alles andere warten lassen."
+  };
+  const noticeClass = { ok:"good", low:"good", medium:"warn", high:"danger", critical:"danger" };
+
+  const drHtml = drivers.length
+    ? '<div class="pred-drivers">'
+      + drivers.map(d => `<span class="pred-driver">${PRED.driverLabel(d.k)}</span>`).join("")
+      + "</div>"
+    : "";
+
+  const learnedCount = Object.keys(state.predictor.weights || {}).length;
+  const learnBadge   = learnedCount >= 3
+    ? `<span class="pred-learn-badge">🧠 Personalisiert</span>` : "";
+
+  let projHtml = "";
+  if(projDays != null && projDays >= 1){
+    projHtml = `<div class="pred-notice warn">⚠️ Risiko steigt – bei gleichem Trend in etwa <b>${projDays} Tag${projDays===1?"":"en"}</b> im roten Bereich.</div>`;
+  } else if(slope < -0.6){
+    projHtml = `<div class="pred-notice good">📉 Erholung erkennbar – Risiko sinkt.</div>`;
+  }
+
+  el.innerHTML = `
+    <div class="pred-score-wrap">
+      <div class="pred-badge ${level}">${score}</div>
+      <div>
+        <div class="pred-level-label">${LVNAME[level]}${learnBadge}</div>
+        <div class="pred-sub">Risiko-Score · 0 = entspannt · 100 = kritisch</div>
+      </div>
+    </div>
+    <div class="pred-progbar"><div class="pred-progfill ${level}" style="width:${score}%"></div></div>
+    ${drHtml}
+    <div class="pred-notice ${noticeClass[level]}">${RECS[level]}</div>
+    ${projHtml}`;
+}
+
+/* Verlauf-Chart rendern */
+function renderPredChart(days){
+  _chartDays = days;
+  $$(".ctab").forEach(t => t.classList.toggle("on", +t.dataset.days === days));
+  const el = $("#predChart"); const noteEl = $("#chartNote");
+  if(!el) return;
+  ensurePredictor();
+  const PRED = window.ANKER_PRED;
+  if(!PRED){ el.innerHTML = ""; return; }
+
+  const hist    = PRED.getHistory(state.log, days, state.predictor.baseline||{}, state.predictor.weights||{});
+  const hasData = hist.filter(h => h.score != null).length >= 2;
+  if(noteEl) noteEl.style.display = hasData ? "none" : "block";
+
+  const DAY_ABBR = ["So","Mo","Di","Mi","Do","Fr","Sa"];
+
+  el.innerHTML = hist.map((h, i) => {
+    const score   = h.score ?? 0;
+    const lvl     = score < 30 ? "ok" : score < 52 ? "low" : score < 70 ? "medium" : score < 86 ? "high" : "critical";
+    const cls     = h.score == null ? "nodata" : lvl;
+    const barH    = h.score != null ? Math.max(4, Math.round(h.score * 0.68)) : 4;
+    const d       = new Date(h.date);
+    const showLbl = days <= 7 || (days === 30 && i % 6 === 0) || (days === 90 && i % 15 === 0);
+    const lbl     = showLbl ? DAY_ABBR[d.getDay()] : "";
+    const crash   = h.isCrash ? `<span class="pc-crash">⚡</span>` : "";
+    return `<div class="pc-bar">
+      ${crash}
+      <div class="pc-fill ${cls}" style="height:${barH}px"></div>
+      ${lbl ? `<div class="pc-label">${lbl}</div>` : ""}
+    </div>`;
+  }).join("");
 }
 
 /* ---------- Low-Demand-Tag ---------- */
@@ -519,7 +712,7 @@ function renderAlEnergy(sel){
   $$("[data-al-e]", ovBody).forEach(b=> b.addEventListener("click", ()=>{
     const k = b.dataset.alE;
     todayLog().energy = k; markActive(); save();
-    paintEnergy(); renderBars(); renderStreak();
+    paintEnergy(); renderEnergyTab(); renderStreak();
     renderAlEnergy(k);
   }));
   alFootClose();
@@ -705,6 +898,34 @@ function renderVerPage(){
   if(vb) vb.addEventListener("click", ()=>{ vi--; renderVerPage(); });
 }
 
+/* ---------- Verlauf-Tabs ---------- */
+$$(".ctab").forEach(t => t.addEventListener("click", () => renderPredChart(+t.dataset.days)));
+
+/* ---------- Garmin-Import ---------- */
+$("#garminImportBtn").addEventListener("click", () => $("#garminFile").click());
+$("#garminFile").addEventListener("change", e => {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const PRED = window.ANKER_PRED;
+    if(!PRED) return;
+    ensurePredictor();
+    const result = PRED.importGarmin(ev.target.result, file.name, state.log);
+    const statusEl = $("#garminStatus");
+    if(statusEl){
+      statusEl.style.display = "block";
+      statusEl.textContent = result.errors.length
+        ? "Fehler: " + result.errors.join("; ")
+        : `✓ ${result.imported} Einträge importiert. Modell wird neu berechnet.`;
+      setTimeout(() => { if(statusEl) statusEl.style.display = "none"; }, 5000);
+    }
+    markActive(); save();
+    rebuildPredBaseline(); renderPredCard(); renderPredChart(_chartDays);
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
 /* ---------- Start ---------- */
 function initSettingsDefaults(){
   // Beim ersten Start System-Einstellungen respektieren
@@ -721,7 +942,7 @@ function initAll(){
   paintEnergy(); renderStreak();
   renderPath();
   renderVerstehen();
-  paintAmp(); renderBars(); renderWarn(); paintLowDemand();
+  paintAmp(); renderEnergyTab(); paintLowDemand();
   renderProfile(); renderAchievements();
   save();
 }

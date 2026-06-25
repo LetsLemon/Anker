@@ -232,9 +232,74 @@ body{
 .warn-add button{border:none;border-radius:50%;width:32px;height:32px;background:var(--teal);color:#fff;font-size:18px;line-height:1;cursor:pointer;flex:0 0 auto}
 [data-theme="dark"] .warn-add button{color:#06110e}
 
+/* Erkannte Muster (Langzeit) */
+.pred-pattern{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}
+.pred-pattern:first-child{padding-top:2px}
+.pred-pattern:last-child{border-bottom:none;padding-bottom:2px}
+.pred-pattern .pp-ic{font-size:18px;flex:0 0 auto;line-height:1.45}
+.pred-pattern p{margin:0;font-size:13px;line-height:1.5;color:var(--text)}
+.pred-pattern.learn p{color:var(--teal-d);font-weight:600}
+
 /* breathing */
 .breath{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:320px;text-align:center}
 .bcircle{width:170px;height:170px;border-radius:50%;background:var(--teal-l);display:flex;align-items:center;justify-content:center;color:var(--teal-d);font-size:18px;font-weight:700;cursor:pointer}
 .bcircle.run{animation:breathe 16s ease-in-out infinite}
 @keyframes breathe{0%{transform:scale(.7)}25%{transform:scale(1.15)}50%{transform:scale(1.15)}75%{transform:scale(.7)}100%{transform:scale(.7)}}
 .note{font-size:12px;color:var(--muted);margin-top:14px}
+
+/* ── Tages-Check · Mehr eintragen ─────────────────────────────── */
+.mehr-toggle{width:100%;background:none;border:1px dashed var(--line);border-radius:12px;padding:9px 14px;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit;text-align:left;margin-top:12px;transition:border-color .15s}
+.mehr-toggle:hover,.mehr-toggle.open{border-color:var(--teal);color:var(--teal-d)}
+.mehr-hint{font-weight:400;font-size:11.5px;margin-left:4px}
+.mehr-form{overflow:hidden}
+.sig-row{margin-top:13px}
+.sig-label{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.sig-btns{display:flex;gap:5px;flex-wrap:wrap}
+.sigb{border:1.5px solid var(--line);background:var(--surface2);border-radius:10px;padding:7px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--muted);white-space:nowrap;transition:border-color .12s,background .12s}
+.sigb:active{transform:scale(.95)}
+.sigb.sel{border-color:var(--teal);background:var(--teal-l);color:var(--teal-d)}
+.warn-section{margin-top:14px}
+.crash-btn{width:100%;border:2px solid var(--line);background:none;border-radius:14px;padding:12px 14px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--muted);margin-top:14px;text-align:left;transition:border-color .15s,background .15s}
+.crash-btn.on{border-color:var(--coral);background:var(--coral-l);color:var(--coral)}
+
+/* ── Burnout-Radar · Risiko-Karte ────────────────────────────── */
+.pred-score-wrap{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.pred-badge{width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:800;flex:0 0 auto;letter-spacing:-.5px}
+.pred-badge.ok,.pred-badge.low{background:var(--teal-l);color:var(--teal-d)}
+.pred-badge.medium{background:var(--amber-l);color:var(--amber)}
+.pred-badge.high{background:var(--coral-l);color:var(--coral)}
+.pred-badge.critical{background:#f5ddd9;color:#b94040}
+[data-theme="dark"] .pred-badge.critical{background:#3a1f1f;color:#e07070}
+.pred-level-label{font-size:16px;font-weight:700}
+.pred-sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+.pred-learn-badge{font-size:11px;color:var(--teal-d);background:var(--teal-l);border-radius:10px;padding:2px 7px;margin-left:6px;font-weight:600}
+.pred-progbar{height:7px;background:var(--line);border-radius:4px;margin:8px 0 10px;overflow:hidden}
+.pred-progfill{height:100%;border-radius:4px;transition:width .45s}
+.pred-progfill.ok,.pred-progfill.low{background:var(--good)}
+.pred-progfill.medium{background:var(--warn)}
+.pred-progfill.high{background:var(--coral)}
+.pred-progfill.critical{background:#b94040}
+.pred-drivers{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.pred-driver{background:var(--amber-l);color:var(--amber);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600}
+[data-theme="dark"] .pred-driver{color:var(--amber)}
+.pred-notice{border-radius:11px;padding:10px 13px;font-size:13px;line-height:1.5;margin-top:8px}
+.pred-notice.good{background:var(--teal-l);border-left:3px solid var(--teal);color:var(--teal-d)}
+.pred-notice.warn{background:var(--amber-l);border-left:3px solid var(--amber);color:var(--text)}
+.pred-notice.danger{background:var(--coral-l);border-left:3px solid var(--coral);color:var(--text)}
+[data-theme="dark"] .pred-notice.good{color:var(--teal)}
+.pred-empty{color:var(--muted);font-size:13px;line-height:1.6;margin:0}
+
+/* ── Verlauf · Chart ─────────────────────────────────────────── */
+.chart-tabs{display:flex;gap:6px;margin-bottom:10px}
+.ctab{border:2px solid var(--line);background:none;border-radius:10px;padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--muted);transition:border-color .12s,color .12s}
+.ctab.on{border-color:var(--teal);background:var(--teal-l);color:var(--teal-d)}
+.pred-chart{display:flex;align-items:flex-end;gap:2px;height:88px;margin-top:4px;padding-bottom:18px;position:relative}
+.pc-bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;position:relative}
+.pc-fill{width:100%;border-radius:3px 3px 1px 1px;min-height:3px}
+.pc-fill.ok,.pc-fill.low{background:var(--good)}
+.pc-fill.medium{background:var(--warn)}
+.pc-fill.high{background:var(--coral)}
+.pc-fill.critical{background:#b94040}
+.pc-fill.nodata{background:var(--line)}
+.pc-crash{position:absolute;top:-14px;font-size:10px;width:100%;text-align:center}
+.pc-label{position:absolute;bottom:-16px;font-size:8px;color:var(--muted);white-space:nowrap;text-align:center;left:50%;transform:translateX(-50%)}

@@ -98,7 +98,8 @@
 
     <!-- ========== ENERGIE ========== -->
     <section class="view" id="v-energy">
-      <div class="sec-title">Burnout-Radar</div>
+
+      <div class="sec-title">Tages-Check</div>
       <div class="card" style="margin-top:6px">
         <h3>Wie ist dein Akku gerade?</h3>
         <p style="margin-bottom:10px">Ehrlich, ohne Wertung. Das steuert, was die App dir heute zumutet.</p>
@@ -108,19 +109,38 @@
           <button class="amp r" data-amp="r" data-msg="Rot – Schutzmodus. Heute nur regulieren."><span class="dot"></span><b>Rot</b><span>Schutz</span></button>
         </div>
         <p id="ampMsg" class="amp-msg"></p>
+        <button class="mehr-toggle" id="mehrBtn">▼ Mehr eintragen <span class="mehr-hint" id="mehrHint"></span></button>
+        <div id="mehrForm" class="mehr-form"></div>
       </div>
 
-      <div class="sec-title">Letzte 7 Tage</div>
-      <div class="card">
-        <div class="bars" id="bars"></div>
-        <p class="muted" id="barsNote" style="margin-top:24px;display:none">Noch wenig Daten – fülle den Akku-Check ein paar Tage aus, dann siehst du hier deinen Verlauf.</p>
+      <div class="sec-title">Burnout-Radar · Risiko</div>
+      <div id="predCard" class="card" style="margin-top:6px"></div>
+
+      <div class="sec-title">Verlauf</div>
+      <div class="card" style="margin-top:6px">
+        <div class="chart-tabs">
+          <button class="ctab on" data-days="7">7 T</button>
+          <button class="ctab" data-days="30">30 T</button>
+          <button class="ctab" data-days="90">90 T</button>
+        </div>
+        <div class="pred-chart" id="predChart"></div>
+        <p class="muted" id="chartNote" style="margin-top:8px;display:none">Noch wenig Daten – fülle den Tages-Check ein paar Tage aus.</p>
       </div>
 
-      <div class="sec-title">Frühwarnzeichen · was spürst du?</div>
-      <div class="warnchips" id="warn"></div>
+      <div class="sec-title">Erkannte Muster</div>
+      <div id="predPatterns" class="card" style="margin-top:6px"></div>
 
       <button class="btn lav" id="lowDemandBtn">🌙 Low-Demand-Tag aktivieren</button>
       <p class="muted" style="margin-top:8px">Reduziert Erinnerungen, macht alle Lektionen optional und schaltet nur die Beruhigen-Tools frei.</p>
+
+      <div class="sec-title">Garmin Connect · Import</div>
+      <div class="card" style="margin-top:6px">
+        <p class="muted" style="margin-bottom:10px">Importiere einen Garmin Connect Bulk-Export (CSV oder JSON). Body Battery, Schlaf, Stress und HRV werden automatisch auf das Modell gemappt.</p>
+        <input type="file" id="garminFile" accept=".csv,.json" style="display:none" aria-label="Garmin-Datei auswählen">
+        <button class="btn ghost" id="garminImportBtn">📂 Garmin-Datei importieren</button>
+        <p id="garminStatus" class="muted" style="margin-top:8px;display:none"></p>
+      </div>
+
     </section>
 
     <!-- ========== ICH ========== -->
@@ -185,6 +205,7 @@
 
 </div>
 
+<script src="data/predictor.js"></script>
 <script src="data/lessons.js"></script>
 <script src="data/alltag.js"></script>
 <script src="data/verstehen.js"></script>
