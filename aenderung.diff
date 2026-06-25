@@ -1,0 +1,33 @@
+﻿HINWEIS: Das Anker-Projekt hat kein Git-Repository.
+Diese Datei beschreibt die Burnout-Erkennungs-Feature-Stellen im Quellcode.
+Zuletzt geänderte Dateien: 25.06.2026 (heutige Sitzung).
+
+=== index.html · Burnout-Radar Section (Zeilen 99-124) ===
+<section class="view" id="v-energy">
+  <div class="sec-title">Burnout-Radar</div>
+  <div class="card">                         <!-- Ampel: Grün/Gelb/Rot -->
+  <div class="sec-title">Letzte 7 Tage</div> <!-- Balkendiagramm -->
+  <div class="sec-title">Frühwarnzeichen</div>
+  <button id="lowDemandBtn">Low-Demand-Tag aktivieren</button>
+
+=== app.js · Burnout-Radar Logik ===
+Zeile 16  : state.log – speichert täglich { energy, akku, warn[] }
+Zeile 18  : state.lowDemand – Low-Demand-Tag Flag
+Zeile 274+: Ampel-Handler (Grün/Gelb/Rot setzen)
+Zeile 286+: renderBars() – 7-Tage-Verlauf
+Zeile 309+: renderWarn() – Frühwarnzeichen-Chips + eigene hinzufügen
+Zeile 346+: lowDemandBtn-Handler
+
+=== data/lessons.js · Burnout-Daten ===
+Zeile 173 : Einheit 3 · Burnout-Prävention (Lektionsblock)
+Zeile 258 : warnSigns: ["Reizbarkeit","Tunnelblick","Schlaf schlecht",
+             "Worte fehlen","Sozial überlastet","Kopf dröhnt"]
+
+Datei-Timestamps der letzten Änderungen:
+  styles.css       25.06.2026 09:43
+  index.html       25.06.2026 09:42
+  app.js           25.06.2026 09:42
+  service-worker.js 25.06.2026 09:40
+  data/verstehen.js 25.06.2026 09:23
+  data/alltag.js   25.06.2026 09:02
+  data/lessons.js  24.06.2026 22:36
