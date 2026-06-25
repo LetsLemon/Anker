@@ -58,6 +58,9 @@
 
       <div class="sec-title">Dein Pfad · frei wählbar</div>
       <div id="pathContainer"></div>
+
+      <!-- Verstehen · frei durchstöberbar, in den Pfad eingebettet -->
+      <div id="verContainer"></div>
     </section>
 
     <!-- ========== BERUHIGEN ========== -->
@@ -93,11 +96,6 @@
       </div>
     </section>
 
-    <!-- ========== VERSTEHEN ========== -->
-    <section class="view" id="v-verstehen">
-      <div id="verContainer"></div>
-    </section>
-
     <!-- ========== ENERGIE ========== -->
     <section class="view" id="v-energy">
       <div class="sec-title">Burnout-Radar</div>
@@ -129,7 +127,7 @@
     <section class="view" id="v-me">
       <div class="prof">
         <div class="avatar">🦦</div>
-        <div><b id="meName" style="font-size:16px">Lea</b><div class="muted" id="meSub">AuDHD · Level 1–2</div></div>
+        <div><b id="meName" style="font-size:16px">Dein Name</b><div class="muted" id="meSub">Profil einrichten</div></div>
       </div>
 
       <div class="sec-title">Mein Profil</div>
@@ -141,6 +139,7 @@
         <h3 style="margin-top:14px">Was mir hilft</h3>
         <div id="profHelps"></div>
       </div>
+      <button class="btn ghost" id="editProfileBtn">✎ Profil bearbeiten</button>
 
       <div class="sec-title">Erfolge · ohne Vergleich mit anderen</div>
       <div class="tool-grid" id="achievements"></div>
@@ -180,7 +179,6 @@
     <button class="on" data-go="pfad"><span class="ti">🧭</span>Pfad</button>
     <button data-go="calm"><span class="ti">🌬️</span>Beruhigen</button>
     <button data-go="alltag"><span class="ti">🧰</span>Alltag</button>
-    <button data-go="verstehen"><span class="ti">💡</span>Verstehen</button>
     <button data-go="energy"><span class="ti">🔋</span>Energie</button>
     <button data-go="me"><span class="ti">🙂</span>Ich</button>
   </nav>

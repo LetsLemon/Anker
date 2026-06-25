@@ -204,6 +204,34 @@ body{
 .ver-take span{font-size:18px;line-height:1.3;flex:0 0 auto}
 .ver-take p{margin:0;font-size:13.5px;line-height:1.55;color:var(--teal-d);font-weight:600}
 
+/* freie Schreib-Option in Quizzen */
+.qfree{width:100%;margin-top:12px;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:11px;font-size:14px;font-family:inherit;color:inherit;resize:vertical;line-height:1.5}
+.qfree:focus{outline:none;border-color:var(--teal)}
+
+/* Profil bearbeiten */
+.prof-empty{font-size:12.5px;color:var(--muted)}
+.pf-input{width:100%;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:11px;font-size:14px;font-family:inherit;color:inherit}
+.pf-input:focus{outline:none;border-color:var(--teal)}
+.pf-block{margin-top:16px}
+.pf-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px}
+.pf-chip{display:inline-flex;align-items:center;gap:6px;background:var(--teal-l);color:var(--teal-d);border-radius:20px;padding:6px 11px;font-size:13px;cursor:pointer;border:none;font-family:inherit}
+.pf-chip i{font-style:normal;font-size:11px;opacity:.65}
+.pf-empty{font-size:12.5px;color:var(--muted)}
+.pf-add{display:flex;gap:8px;margin-top:2px}
+.pf-add .pf-input{flex:1}
+.pf-addbtn{flex:0 0 auto;border:none;border-radius:12px;padding:0 14px;background:var(--teal);color:#fff;font-weight:700;font-family:inherit;cursor:pointer;font-size:13px}
+[data-theme="dark"] .pf-addbtn{color:#06110e}
+.pf-sugg{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.pf-sugg-chip{border:1px dashed var(--line);border-radius:20px;padding:6px 11px;font-size:12.5px;color:var(--muted);cursor:pointer;background:none;font-family:inherit}
+.pf-sugg-chip:active{background:var(--surface2)}
+
+/* Frühwarnzeichen: eigenes hinzufügen */
+.warn-add{display:inline-flex;gap:6px;align-items:center;margin-top:0}
+.warn-add input{border:1px solid var(--line);background:var(--surface);border-radius:20px;padding:7px 12px;font-size:12px;font-family:inherit;color:inherit;width:118px}
+.warn-add input:focus{outline:none;border-color:var(--teal)}
+.warn-add button{border:none;border-radius:50%;width:32px;height:32px;background:var(--teal);color:#fff;font-size:18px;line-height:1;cursor:pointer;flex:0 0 auto}
+[data-theme="dark"] .warn-add button{color:#06110e}
+
 /* breathing */
 .breath{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:320px;text-align:center}
 .bcircle{width:170px;height:170px;border-radius:50%;background:var(--teal-l);display:flex;align-items:center;justify-content:center;color:var(--teal-d);font-size:18px;font-weight:700;cursor:pointer}

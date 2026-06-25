@@ -18,7 +18,8 @@ const defaultState = () => ({
   lowDemand: { date:null },
   alltag: {},          // gespeicherte Alltags-Daten (z. B. Termin-Vorbereitung)
   read: {},            // Verstehen: cardId -> true (rein informativ, kein Streak/Zwang)
-  profile: null
+  customWarns: [],     // selbst hinzugefügte Frühwarnzeichen
+  profile: null        // wird beim ersten Bearbeiten zu { name, subtitle, strengths, triggers, helps }
 });
 let state = load();
 
@@ -43,7 +44,7 @@ function markActive(){
 }
 
 /* ---------- Navigation ---------- */
-const VIEWS = { pfad:"v-pfad", calm:"v-calm", alltag:"v-alltag", verstehen:"v-verstehen", energy:"v-energy", me:"v-me" };
+const VIEWS = { pfad:"v-pfad", calm:"v-calm", alltag:"v-alltag", energy:"v-energy", me:"v-me" };
 function go(v, btn){
   $$(".view").forEach(e=>e.classList.remove("active"));
   $("#"+VIEWS[v]).classList.add("active");
@@ -157,7 +158,8 @@ function renderStep(){
   else if(s.type==="quiz"){
     html = '<div class="lead">'+s.q+'</div>'+
       s.opts.map(o=>'<button class="qopt" data-opt>'+o+'</button>').join('') +
-      (s.multi ? '<p class="muted" style="margin-top:10px">Mehrere möglich – tippe alles an, was passt.</p>' : '');
+      (s.multi ? '<p class="muted" style="margin-top:10px">Mehrere möglich – tippe alles an, was passt.</p>' : '')+
+      '<textarea class="qfree" rows="2" placeholder="Oder in deinen eigenen Worten – ganz frei …"></textarea>';
   }
   else if(s.type==="plan"){
     html = '<div class="lead">'+s.lead+'</div><p class="muted">Dein „Wenn–dann"-Plan:</p>'+
@@ -308,7 +310,8 @@ function renderBars(){
 function renderWarn(){
   const wEl = $("#warn"); wEl.innerHTML = "";
   const sel = todayLog().warn || [];
-  DATA.warnSigns.forEach(w=>{
+  const custom = Array.isArray(state.customWarns) ? state.customWarns : [];
+  DATA.warnSigns.concat(custom).forEach(w=>{
     const b = document.createElement("button");
     b.className = "wc" + (sel.includes(w) ? " on" : "");
     b.textContent = w;
@@ -321,6 +324,22 @@ function renderWarn(){
     });
     wEl.appendChild(b);
   });
+  // freie Option: eigenes Zeichen hinzufügen
+  const add = document.createElement("div");
+  add.className = "warn-add";
+  add.innerHTML = '<input type="text" id="warnAddInput" placeholder="Eigenes …" aria-label="Eigenes Frühwarnzeichen">'+
+    '<button id="warnAddBtn" type="button" aria-label="hinzufügen">+</button>';
+  wEl.appendChild(add);
+  const doAdd = ()=>{
+    const inp = $("#warnAddInput"); const v = inp.value.trim();
+    if(!v) return;
+    if(!Array.isArray(state.customWarns)) state.customWarns = [];
+    if(!state.customWarns.includes(v) && !DATA.warnSigns.includes(v)) state.customWarns.push(v);
+    if(!todayLog().warn.includes(v)) todayLog().warn.push(v);
+    markActive(); save(); renderWarn();
+  };
+  $("#warnAddBtn").addEventListener("click", doAdd);
+  $("#warnAddInput").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); doAdd(); } });
 }
 
 /* ---------- Low-Demand-Tag ---------- */
@@ -338,16 +357,101 @@ function paintLowDemand(){
 }
 
 /* ---------- Profil & Erfolge ---------- */
-function chips(arr, cls){ return arr.map(t=>'<span class="tag '+(cls||"")+'">'+t+'</span>').join(''); }
-function renderProfile(){
-  const p = state.profile || DATA.profile;
-  $("#meName").textContent = p.name;
-  $("#meSub").textContent  = p.subtitle + " · " + state.activeDays.length + " Tage dabei";
-  $("#greetName").textContent = "Hi " + p.name;
-  $("#profStrengths").innerHTML = chips(p.strengths);
-  $("#profTriggers").innerHTML  = chips(p.triggers, "coral");
-  $("#profHelps").innerHTML     = chips(p.helps, "lav");
+function chips(arr, cls){ return arr.map(t=>'<span class="tag '+(cls||"")+'">'+esc(t)+'</span>').join(''); }
+
+// Vorschläge zum Antippen – nichts davon ist vorausgewählt, alles frei änderbar.
+const SUGG = {
+  strengths: ["Detailgenau","Ehrlich","Loyal","Kreativ","Tiefes Fachwissen","Muster erkennen","Gerechtigkeitssinn","Fokussiert","Empathisch","Verlässlich"],
+  triggers:  ["Grelles Licht","Laute Geräusche","Unerwartete Änderungen","Smalltalk","Zeitdruck","Menschenmengen","Kratzige Stoffe","Starke Gerüche","Unterbrechungen","Vieles gleichzeitig"],
+  helps:     ["Rückzug","Kopfhörer","Reizarme Umgebung","Feste Routine","Stimming","Klare Pläne","Pausen","Bewegung","Vertraute Menschen","Vorhersehbarkeit"]
+};
+function profileData(){
+  if(!state.profile || typeof state.profile!=="object") state.profile = { name:"", subtitle:"", strengths:[], triggers:[], helps:[] };
+  const p = state.profile;
+  if(typeof p.name!=="string") p.name = "";
+  if(typeof p.subtitle!=="string") p.subtitle = "";
+  p.strengths = Array.isArray(p.strengths) ? p.strengths : [];
+  p.triggers  = Array.isArray(p.triggers)  ? p.triggers  : [];
+  p.helps     = Array.isArray(p.helps)     ? p.helps     : [];
+  return p;
 }
+function profEmpty(){ return '<span class="prof-empty">Noch leer – tippe auf „Profil bearbeiten".</span>'; }
+function renderProfile(){
+  const p = profileData();
+  $("#meName").textContent = p.name || "Dein Name";
+  $("#meSub").textContent  = (p.subtitle ? p.subtitle+" · " : "") + state.activeDays.length + " Tage dabei";
+  $("#greetName").textContent = p.name ? ("Hi "+p.name) : "Hi";
+  $("#profStrengths").innerHTML = p.strengths.length ? chips(p.strengths)          : profEmpty();
+  $("#profTriggers").innerHTML  = p.triggers.length  ? chips(p.triggers, "coral")  : profEmpty();
+  $("#profHelps").innerHTML     = p.helps.length     ? chips(p.helps, "lav")       : profEmpty();
+}
+
+/* Profil bearbeiten – alles frei wählbar */
+let pfDraft = null;
+function pfField(label, id, val, ph){
+  return '<div class="al-field"><label>'+label+'</label>'+
+    '<input class="pf-input" id="'+id+'" type="text" value="'+esc(val)+'" placeholder="'+esc(ph)+'"></div>';
+}
+function pfListBlock(title, key){
+  return '<div class="pf-block"><div class="al-h">'+title+'</div>'+
+    '<div class="pf-chips" id="pf-'+key+'"></div>'+
+    '<div class="pf-add"><input type="text" class="pf-input" data-pf-add="'+key+'" placeholder="Eigenes hinzufügen …">'+
+    '<button class="pf-addbtn" type="button" data-pf-addbtn="'+key+'">Hinzufügen</button></div>'+
+    '<div class="pf-sugg" id="pf-sugg-'+key+'"></div></div>';
+}
+function openProfileEditor(){
+  const p = profileData();
+  pfDraft = { name:p.name, subtitle:p.subtitle, strengths:p.strengths.slice(), triggers:p.triggers.slice(), helps:p.helps.slice() };
+  openOverlay("Profil bearbeiten", false);
+  ovBody.innerHTML =
+    '<p class="muted" style="margin-bottom:6px">Alles hier ist frei wählbar – nichts ist vorgegeben. Tippe Vorschläge an oder schreib Eigenes.</p>'+
+    pfField("Name","pf-name", pfDraft.name, "Wie möchtest du genannt werden?")+
+    pfField("Untertitel · ganz frei","pf-sub", pfDraft.subtitle, "z. B. AuDHD – oder leer lassen")+
+    pfListBlock("Stärken","strengths")+
+    pfListBlock("Trigger","triggers")+
+    pfListBlock("Was mir hilft","helps");
+  ovFoot.innerHTML = '<button class="btn" data-pf-save>Speichern</button>'+
+    '<button class="btn ghost" data-close style="margin-top:8px">Abbrechen</button>';
+  ["strengths","triggers","helps"].forEach(renderPfList);
+  $$("[data-pf-addbtn]", ovBody).forEach(b=> b.addEventListener("click", ()=> pfAdd(b.dataset.pfAddbtn)));
+  $$("[data-pf-add]", ovBody).forEach(inp=> inp.addEventListener("keydown", e=>{
+    if(e.key==="Enter"){ e.preventDefault(); pfAdd(inp.dataset.pfAdd); }
+  }));
+  $("[data-pf-save]", ovFoot).addEventListener("click", ()=>{
+    pfDraft.name = $("#pf-name").value.trim();
+    pfDraft.subtitle = $("#pf-sub").value.trim();
+    state.profile = { name:pfDraft.name, subtitle:pfDraft.subtitle,
+      strengths:pfDraft.strengths.slice(), triggers:pfDraft.triggers.slice(), helps:pfDraft.helps.slice() };
+    save(); renderProfile(); closeOverlay();
+  });
+  $("[data-close]", ovFoot).addEventListener("click", closeOverlay);
+}
+function pfAdd(key){
+  const inp = $('[data-pf-add="'+key+'"]', ovBody);
+  const v = inp.value.trim();
+  if(v && !pfDraft[key].includes(v)) pfDraft[key].push(v);
+  inp.value = ""; renderPfList(key); inp.focus();
+}
+function renderPfList(key){
+  const wrap = $("#pf-"+key); if(!wrap) return;
+  wrap.innerHTML = pfDraft[key].length
+    ? pfDraft[key].map((t,i)=>'<span class="pf-chip" data-key="'+key+'" data-i="'+i+'">'+esc(t)+' <i>✕</i></span>').join('')
+    : '<span class="pf-empty">Noch nichts ausgewählt</span>';
+  $$(".pf-chip", wrap).forEach(c=> c.addEventListener("click", ()=>{
+    pfDraft[c.dataset.key].splice(+c.dataset.i, 1); renderPfList(c.dataset.key);
+  }));
+  const sg = $("#pf-sugg-"+key);
+  if(sg){
+    const items = (SUGG[key]||[]).map((s,idx)=>({s,idx})).filter(o=> !pfDraft[key].includes(o.s));
+    sg.innerHTML = items.map(o=>'<span class="pf-sugg-chip" data-key="'+key+'" data-i="'+o.idx+'">+ '+esc(o.s)+'</span>').join('');
+    $$(".pf-sugg-chip", sg).forEach(c=> c.addEventListener("click", ()=>{
+      const k=c.dataset.key, val=SUGG[k][+c.dataset.i];
+      if(val && !pfDraft[k].includes(val)) pfDraft[k].push(val);
+      renderPfList(k);
+    }));
+  }
+}
+$("#editProfileBtn").addEventListener("click", openProfileEditor);
 function renderAchievements(){
   const el = $("#achievements");
   const lessonsDone = Object.keys(state.done).length;
@@ -386,7 +490,7 @@ $("#resetBtn").addEventListener("click", ()=>{
 
 /* ---------- Alltag erleichtern (Säule 2) ---------- */
 const AL = window.ANKER_ALLTAG || {};
-function esc(s){ return String(s==null?"":s).replace(/[&<>]/g, c=> ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=> ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function alFootClose(){
   ovFoot.innerHTML = '<button class="btn ghost" data-close>Schließen</button>';
   $("[data-close]", ovFoot).addEventListener("click", closeOverlay);
@@ -623,9 +727,22 @@ function initAll(){
 }
 initAll();
 
-/* ---------- Service Worker (offline) ---------- */
+/* ---------- Service Worker (offline + Auto-Update) ---------- */
 if("serviceWorker" in navigator && location.protocol!=="file:"){
-  window.addEventListener("load", ()=> navigator.serviceWorker.register("service-worker.js").catch(()=>{}));
+  // Lädt eine neue Version sich automatisch nach, sobald sie da ist.
+  const hadController = !!navigator.serviceWorker.controller;
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", ()=>{
+    if(refreshing || !hadController) return; // beim allerersten Install kein Reload
+    refreshing = true; window.location.reload();
+  });
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("service-worker.js").then(reg=>{
+      reg.update && reg.update();
+      // regelmäßig auf Updates prüfen, wenn die App offen bleibt
+      setInterval(()=>{ try{ reg.update(); }catch(e){} }, 60*60*1000);
+    }).catch(()=>{});
+  });
 }
 
 })();

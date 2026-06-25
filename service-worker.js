@@ -1,6 +1,9 @@
-/* Anker · Service Worker – macht die App offline-fähig.
-   Cache-Version bei Änderungen hochzählen (v1 -> v2 ...), damit Updates greifen. */
-const CACHE = "anker-v3";
+/* Anker · Service Worker.
+   Strategie: NETWORK-FIRST – wenn online, immer die neueste Version laden;
+   nur wenn offline, aus dem Cache. So zeigt die App nach einem Upload sofort
+   die aktuelle Fassung und bleibt trotzdem offline nutzbar.
+   Cache-Version bei Änderungen hochzählen (v3 -> v4 ...). */
+const CACHE = "anker-v4";
 const ASSETS = [
   "index.html",
   "styles.css",
@@ -29,22 +32,17 @@ self.addEventListener("activate", (e)=>{
 self.addEventListener("fetch", (e)=>{
   const req = e.request;
   if(req.method !== "GET") return;
-  // Navigationsanfragen: zur App-Hülle zurückfallen (Offline-Start)
-  if(req.mode === "navigate"){
-    e.respondWith(
-      fetch(req).catch(()=> caches.match("index.html"))
-    );
-    return;
-  }
-  // Sonst: erst Cache, dann Netz (und nachladen)
+  let url;
+  try { url = new URL(req.url); } catch(_) { return; }
+  if(url.origin !== self.location.origin) return; // nur eigene Dateien behandeln
+
+  // Network-first: frische Version holen, im Cache aktualisieren;
+  // bei Fehler (offline) aus dem Cache, sonst zurück zur App-Hülle.
   e.respondWith(
-    caches.match(req).then(hit=>{
-      if(hit) return hit;
-      return fetch(req).then(res=>{
-        const copy = res.clone();
-        caches.open(CACHE).then(c=> c.put(req, copy)).catch(()=>{});
-        return res;
-      }).catch(()=> hit);
-    })
+    fetch(req).then(res=>{
+      const copy = res.clone();
+      caches.open(CACHE).then(c=> c.put(req, copy)).catch(()=>{});
+      return res;
+    }).catch(()=> caches.match(req).then(hit=> hit || caches.match("index.html")))
   );
 });
