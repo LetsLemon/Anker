@@ -96,6 +96,23 @@
       </div>
     </section>
 
+    <!-- ========== PRAXIS ========== -->
+    <section class="view" id="v-praxis">
+      <div class="sec-title">Übungen · jederzeit, so oft du magst</div>
+      <p class="muted" style="margin:2px 4px 0">Keine Lektionen zum Wegklicken – Praktiken, zu denen du zurückkommst. Nichts musst du.</p>
+      <div class="tool-grid" id="praxisGrid" style="margin-top:12px"></div>
+      <div id="praxisHelps"></div>
+
+      <div class="sec-title">Journal · in deinem Tempo</div>
+      <div class="card" style="margin-top:6px">
+        <p class="jp-prompt" id="jPrompt"></p>
+        <textarea class="jp-text" id="jText" rows="3" placeholder="Schreib, was da ist – ein Wort reicht."></textarea>
+        <div class="jp-moodrow"><span class="jp-moodlab">Wie war's?</span><div class="jp-moods" id="jMoods"></div></div>
+        <button class="btn" id="jSave">Eintrag speichern</button>
+      </div>
+      <div id="jHistory"></div>
+    </section>
+
     <!-- ========== ENERGIE ========== -->
     <section class="view" id="v-energy">
 
@@ -125,6 +142,7 @@
         </div>
         <div class="pred-chart" id="predChart"></div>
         <p class="muted" id="chartNote" style="margin-top:8px;display:none">Noch wenig Daten – fülle den Tages-Check ein paar Tage aus.</p>
+        <button class="data-link" id="dataOverviewBtn">Eingetragene Tage ansehen ›</button>
       </div>
 
       <div class="sec-title">Erkannte Muster</div>
@@ -199,6 +217,7 @@
     <button class="on" data-go="pfad"><span class="ti">🧭</span>Pfad</button>
     <button data-go="calm"><span class="ti">🌬️</span>Beruhigen</button>
     <button data-go="alltag"><span class="ti">🧰</span>Alltag</button>
+    <button data-go="praxis"><span class="ti">🌿</span>Praxis</button>
     <button data-go="energy"><span class="ti">🔋</span>Energie</button>
     <button data-go="me"><span class="ti">🙂</span>Ich</button>
   </nav>
@@ -206,6 +225,7 @@
 </div>
 
 <script src="data/predictor.js"></script>
+<script src="data/praxis.js"></script>
 <script src="data/lessons.js"></script>
 <script src="data/alltag.js"></script>
 <script src="data/verstehen.js"></script>

@@ -220,20 +220,22 @@ function importGarmin(text, filename, log){
       return null;
     };
 
+    const mark = f => { if(!r.garminFields) r.garminFields = []; if(r.garminFields.indexOf(f) < 0) r.garminFields.push(f); };
+
     const bb = get("bodyBattery","body battery (end of day)","body battery","bodybattery");
-    if(bb != null){ r.garminBodyBattery = bb; if(!r.akku) r.akku = bb >= 65 ? "g" : bb >= 40 ? "y" : "r"; }
+    if(bb != null){ r.garminBodyBattery = bb; if(!r.akku){ r.akku = bb >= 65 ? "g" : bb >= 40 ? "y" : "r"; mark("akku"); } }
 
     const sl = get("sleepTimeSeconds","sleep time (seconds)","sleep (seconds)");
-    if(sl != null && !r.sleepH) r.sleepH = Math.round(sl / 360) / 10;
+    if(sl != null && !r.sleepH){ r.sleepH = Math.round(sl / 360) / 10; mark("sleepH"); }
 
     const ss = get("sleepScore","sleep score","sleep quality score");
-    if(ss != null && !r.sleepQ) r.sleepQ = Math.max(1, Math.min(5, Math.round(ss / 20)));
+    if(ss != null && !r.sleepQ){ r.sleepQ = Math.max(1, Math.min(5, Math.round(ss / 20))); mark("sleepQ"); }
 
     const hr = get("restingHeartRate","resting heart rate (bpm)","resting heart rate");
     if(hr != null) r.garminHR = hr;
 
     const st = get("averageStressLevel","average stress level","stress avg");
-    if(st != null){ r.garminStress = st; if(!r.stress) r.stress = Math.min(5, Math.max(1, Math.round(1 + st / 25))); }
+    if(st != null){ r.garminStress = st; if(!r.stress){ r.stress = Math.min(5, Math.max(1, Math.round(1 + st / 25))); mark("stress"); } }
 
     const hrv = get("avgOvernightHrv","avg overnight hrv","hrv");
     if(hrv != null) r.garminHRV = hrv;
@@ -359,6 +361,53 @@ function detectPatterns(log, predState){
   return out;
 }
 
+/* Tages-Aufschlüsselung: was wurde eingetragen, woher, wie belastend */
+const SIG_META = {
+  akku:       { label:"Akku",           fmt:v=>({g:"Grün",y:"Gelb",r:"Rot"}[v]||v) },
+  energy:     { label:"Energie",        fmt:v=>({voll:"Viel",mittel:"Mittel",wenig:"Wenig",leer:"Leer"}[v]||v) },
+  sleepH:     { label:"Schlaf",         fmt:v=>String(v).replace(".",",")+" h" },
+  sleepQ:     { label:"Schlafqualität", fmt:v=>["–","Schlecht","Eher schwach","Ok","Gut","Sehr gut"][Math.round(v)]||v },
+  irritation: { label:"Reizlast",       fmt:v=>["–","Gering","Leicht","Mittel","Hoch","Extrem"][Math.round(v)]||v },
+  socialLoad: { label:"Soziale Last",   fmt:v=>["–","Kaum","Etwas","Mittel","Viel","Erschöpft"][Math.round(v)]||v },
+  maskingH:   { label:"Masking",        fmt:v=>(+v)+" h" },
+  stress:     { label:"Stress",         fmt:v=>["–","Gering","Leicht","Mittel","Hoch","Extrem"][Math.round(v)]||v }
+};
+
+function explainDay(date, log, predState){
+  const rec = log ? log[date] : null;
+  if(!rec) return { date, has:false };
+  const bl = (predState && predState.baseline) || {};
+  const W  = (predState && predState.weights)  || {};
+  const sig = sigFromRec(rec);
+  const strain = sig ? Math.round(dayStrain(sig, bl, W) * 100) : null;
+  const level  = strain == null ? null : strain < 34 ? "ruhig" : strain < 64 ? "mittel" : "hoch";
+
+  const gf = Array.isArray(rec.garminFields) ? rec.garminFields : [];
+  function relOf(k){
+    const v = sig ? sig[k] : null; if(v == null) return null;
+    const mu = bl[k] ? bl[k].mean : 0.38, sd = Math.max(0.08, welfordSD(bl[k]));
+    const z = (v - mu) / sd; return z > 0.65 ? "hoch" : z < -0.65 ? "niedrig" : "normal";
+  }
+
+  const rows = [];
+  let anyGarmin = false, anyManual = false;
+  Object.keys(SIG_META).forEach(k => {
+    const raw = rec[k]; if(raw == null || raw === "") return;
+    const src = gf.indexOf(k) >= 0 ? "garmin" : "manuell";
+    if(src === "garmin") anyGarmin = true; else anyManual = true;
+    let note = "";
+    if(k === "akku"   && rec.garminBodyBattery != null) note = "Body Battery " + rec.garminBodyBattery;
+    if(k === "stress" && rec.garminStress      != null) note = "Garmin " + rec.garminStress + "/100";
+    rows.push({ k, label:SIG_META[k].label, value:SIG_META[k].fmt(raw), rel:relOf(k), src, note });
+  });
+  const warns = Array.isArray(rec.warn) ? rec.warn : [];
+  if(warns.length){ anyManual = true; rows.push({ k:"warnCount", label:"Frühwarnzeichen", value:warns.join(", "), rel:relOf("warnCount"), src:"manuell", note:"" }); }
+
+  const source  = (anyGarmin && anyManual) ? "gemischt" : anyGarmin ? "garmin" : anyManual ? "manuell" : null;
+  const drivers = rows.filter(r => r.rel === "hoch").map(r => r.label);
+  return { date, has:true, strain, level, source, rows, drivers, isCrash: !!rec.isCrash };
+}
+
 const DRIVER_LABELS = {
   akku:       "niedriger Akku",
   energy:     "wenig Energie",
@@ -372,5 +421,5 @@ const DRIVER_LABELS = {
 };
 function driverLabel(k){ return DRIVER_LABELS[k] || k; }
 
-return { computeRisk, rebuildBaseline, learnFromCrash, importGarmin, getHistory, detectPatterns, driverLabel, SIG };
+return { computeRisk, rebuildBaseline, learnFromCrash, importGarmin, getHistory, detectPatterns, explainDay, driverLabel, SIG };
 })();

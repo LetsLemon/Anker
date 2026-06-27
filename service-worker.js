@@ -3,12 +3,13 @@
    nur wenn offline, aus dem Cache. So zeigt die App nach einem Upload sofort
    die aktuelle Fassung und bleibt trotzdem offline nutzbar.
    Cache-Version bei Änderungen hochzählen (v3 -> v4 ...). */
-const CACHE = "anker-v6";
+const CACHE = "anker-v8";
 const ASSETS = [
   "index.html",
   "styles.css",
   "app.js",
   "data/predictor.js",
+  "data/praxis.js",
   "data/lessons.js",
   "data/alltag.js",
   "data/verstehen.js",

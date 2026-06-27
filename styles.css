@@ -232,6 +232,29 @@ body{
 .warn-add button{border:none;border-radius:50%;width:32px;height:32px;background:var(--teal);color:#fff;font-size:18px;line-height:1;cursor:pointer;flex:0 0 auto}
 [data-theme="dark"] .warn-add button{color:#06110e}
 
+/* Daten einsehen (Tages-Detail + Liste) */
+.data-link{display:inline-block;background:none;border:none;color:var(--teal);font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:10px 2px 2px;margin-top:4px}
+.dd-head{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.dd-dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+.dd-head b{font-size:15px}
+.dd-row{display:flex;align-items:center;gap:8px;padding:11px 0;border-bottom:1px solid var(--line)}
+.dd-row:last-child{border-bottom:none}
+.dd-lab{font-size:13px;color:var(--muted);flex:0 0 36%}
+.dd-val{font-size:14px;flex:1;display:flex;flex-direction:column;gap:1px;min-width:0}
+.dd-note{font-size:11px;color:var(--muted)}
+.dd-tags{display:flex;gap:5px;flex:0 0 auto;align-items:center}
+.dd-rel{font-size:10.5px;padding:2px 7px;border-radius:10px}
+.dd-rel.hoch{background:var(--coral-l);color:var(--coral)}
+.dd-rel.niedrig{background:var(--teal-l);color:var(--teal-d)}
+.dd-src{font-size:10.5px;padding:2px 7px;border-radius:10px;background:var(--surface2);color:var(--muted);white-space:nowrap}
+.dd-src.garmin{background:var(--lav-l);color:var(--lav)}
+.dd-src.gemischt{background:var(--amber-l);color:var(--amber)}
+.dd-listrow{width:100%;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-top:7px;cursor:pointer;font:inherit;color:inherit;text-align:left}
+.dd-ld-date{font-size:13.5px;flex:1}
+.dd-ld-strain{font-size:13px;font-weight:700;color:var(--muted)}
+.dd-chev{color:var(--muted)}
+.pc-bar.tap{cursor:pointer}
+
 /* Erkannte Muster (Langzeit) */
 .pred-pattern{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}
 .pred-pattern:first-child{padding-top:2px}
@@ -239,6 +262,34 @@ body{
 .pred-pattern .pp-ic{font-size:18px;flex:0 0 auto;line-height:1.45}
 .pred-pattern p{margin:0;font-size:13px;line-height:1.5;color:var(--text)}
 .pred-pattern.learn p{color:var(--teal-d);font-weight:600}
+
+/* Praxis: Übungen */
+.px-card{position:relative}
+.px-help{position:absolute;top:8px;right:8px;font-size:10px;background:var(--teal-l);color:var(--teal-d);padding:2px 7px;border-radius:10px}
+.px-helprow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.px-helprow:last-child{border-bottom:none}
+.px-helprow>span:first-child{font-size:18px}
+.px-helprow b{flex:1}
+.px-range{width:100%;margin:18px 0 6px;accent-color:var(--teal)}
+.px-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.px-quote{margin-top:14px;background:var(--lav-l);border-radius:14px;padding:16px;font-size:16px;line-height:1.55;color:var(--text)}
+.px-breath{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px}
+.pb-circle{width:160px;height:160px;border-radius:50%;background:var(--teal-l);display:flex;align-items:center;justify-content:center;color:var(--teal-d);font-size:18px;font-weight:700;transform:scale(.7);margin:14px auto}
+
+/* Praxis: Journal */
+.jp-prompt{font-size:14.5px;font-weight:600;color:var(--text);margin:0 0 10px;line-height:1.5}
+.jp-text{width:100%;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:11px;font-size:14px;font-family:inherit;color:inherit;resize:vertical;line-height:1.5}
+.jp-text:focus{outline:none;border-color:var(--teal)}
+.jp-moodrow{display:flex;align-items:center;gap:10px;margin:12px 0}
+.jp-moodlab{font-size:12.5px;color:var(--muted)}
+.jp-moods{display:flex;gap:8px}
+.jp-mood{background:none;border:none;cursor:pointer;padding:4px;border-radius:50%;line-height:0}
+.jp-mood.sel{outline:2px solid var(--teal);outline-offset:1px}
+.jp-dot{display:block;width:18px;height:18px;border-radius:50%}
+.j-entry{width:100%;display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-top:7px;cursor:pointer;font:inherit;color:inherit;text-align:left}
+.j-meta{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+.j-meta b{font-size:13px}
+.j-meta .muted{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 
 /* breathing */
 .breath{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:320px;text-align:center}

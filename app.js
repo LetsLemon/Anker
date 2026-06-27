@@ -19,6 +19,8 @@ const defaultState = () => ({
   alltag: {},          // gespeicherte Alltags-Daten (z. B. Termin-Vorbereitung)
   read: {},            // Verstehen: cardId -> true (rein informativ, kein Streak/Zwang)
   customWarns: [],     // selbst hinzugefügte Frühwarnzeichen
+  practice: [],        // [{id, date, ts, helped}] – welche Übung wann, wie hilfreich
+  journal: [],         // [{ts, date, text, mood, prompt, energy}]
   profile: null,       // wird beim ersten Bearbeiten zu { name, subtitle, strengths, triggers, helps }
   predictor: null      // { baseline, weights, lastUpdated } – Burnout-Prädiktor-Zustand
 });
@@ -49,7 +51,7 @@ function markActive(){
 }
 
 /* ---------- Navigation ---------- */
-const VIEWS = { pfad:"v-pfad", calm:"v-calm", alltag:"v-alltag", energy:"v-energy", me:"v-me" };
+const VIEWS = { pfad:"v-pfad", calm:"v-calm", alltag:"v-alltag", praxis:"v-praxis", energy:"v-energy", me:"v-me" };
 function go(v, btn){
   $$(".view").forEach(e=>e.classList.remove("active"));
   $("#"+VIEWS[v]).classList.add("active");
@@ -141,6 +143,7 @@ function openOverlay(title, showProgress){
 function closeOverlay(){
   ov.classList.remove("open");
   stopBreath();
+  pxStopBreath();
 }
 $("#ovClose").addEventListener("click", closeOverlay);
 
@@ -323,6 +326,71 @@ function renderPredPatterns(){
     '<div class="pred-pattern '+(p.tone||"")+'"><span class="pp-ic">'+p.icon+'</span><p>'+esc(p.text)+'</p></div>'
   ).join('');
 }
+
+/* ---------- Daten einsehen: was zählt rein, woher kommt es ---------- */
+const _WD = ["So","Mo","Di","Mi","Do","Fr","Sa"];
+const _MON = ["Jan.","Feb.","März","Apr.","Mai","Juni","Juli","Aug.","Sep.","Okt.","Nov.","Dez."];
+function fmtDay(d){ const x = new Date(d+"T00:00:00"); return _WD[x.getDay()]+", "+x.getDate()+". "+_MON[x.getMonth()]; }
+function srcLabel(s){ return s==="garmin" ? "Garmin" : s==="gemischt" ? "Garmin + manuell" : "manuell"; }
+const _LVLCOL = { ruhig:"var(--good)", mittel:"var(--warn)", hoch:"var(--bad)" };
+
+function hasEntry(r){ return r && (r.akku || r.energy || r.sleepH!=null || r.sleepQ!=null || r.irritation!=null || r.socialLoad!=null || r.maskingH!=null || r.stress!=null || (Array.isArray(r.warn)&&r.warn.length)); }
+
+function openDataOverview(){
+  const PRED = window.ANKER_PRED; if(!PRED) return;
+  ensurePredictor();
+  openOverlay("Eingetragene Tage", false);
+  const dates = Object.keys(state.log).filter(d => hasEntry(state.log[d])).sort().reverse().slice(0, 60);
+  if(!dates.length){
+    ovBody.innerHTML = '<p class="muted">Noch keine Einträge. Fülle den Tages-Check aus oder importiere Garmin-Daten – dann siehst du hier jeden Tag und seine Wirkung.</p>';
+    alFootClose(); return;
+  }
+  ovBody.innerHTML = '<p class="muted" style="margin-bottom:8px">Tippe einen Tag an: Du siehst, was zählt – und woher die Werte kommen.</p>'+
+    dates.map(d => {
+      const e = PRED.explainDay(d, state.log, state.predictor);
+      const col = _LVLCOL[e.level] || "var(--line)";
+      return '<button class="dd-listrow" data-day="'+d+'">'+
+        '<span class="dd-dot" style="background:'+col+'"></span>'+
+        '<span class="dd-ld-date">'+fmtDay(d)+(e.isCrash?' ⚡':'')+'</span>'+
+        '<span class="dd-ld-strain">'+(e.strain!=null?e.strain:'–')+'</span>'+
+        (e.source ? '<span class="dd-src '+e.source+'">'+srcLabel(e.source)+'</span>' : '')+
+        '<span class="dd-chev">›</span></button>';
+    }).join('');
+  $$("[data-day]", ovBody).forEach(b => b.addEventListener("click", () => openDayDetail(b.dataset.day)));
+  alFootClose();
+}
+
+function openDayDetail(date){
+  const PRED = window.ANKER_PRED; if(!PRED) return;
+  ensurePredictor();
+  const d = PRED.explainDay(date, state.log, state.predictor);
+  openOverlay(fmtDay(date), false);
+  if(!d.has){
+    ovBody.innerHTML = '<p class="muted">Für diesen Tag ist nichts eingetragen.</p>';
+    ovFoot.innerHTML = '<button class="btn ghost" data-ovback>‹ Zurück</button>';
+    $("[data-ovback]", ovFoot).addEventListener("click", openDataOverview);
+    return;
+  }
+  const col = _LVLCOL[d.level] || "var(--muted)";
+  let html = '<div class="dd-head"><span class="dd-dot" style="width:13px;height:13px;background:'+col+'"></span>'+
+    '<div><b>'+(d.strain!=null ? ('Belastung '+d.strain+' / 100') : '—')+'</b>'+
+    '<div class="muted" style="font-size:12px">'+(d.level||'')+(d.source ? ' · '+srcLabel(d.source) : '')+(d.isCrash?' · ⚡ Crash-Tag':'')+'</div></div></div>';
+  html += d.rows.map(r => {
+    const relTag = (r.rel && r.rel!=="normal") ? '<span class="dd-rel '+r.rel+'">'+r.rel+'</span>' : '';
+    const srcTag = '<span class="dd-src '+r.src+'">'+(r.src==="garmin"?"Garmin":"manuell")+'</span>';
+    const note   = r.note ? '<span class="dd-note">'+esc(r.note)+'</span>' : '';
+    return '<div class="dd-row"><span class="dd-lab">'+r.label+'</span>'+
+      '<span class="dd-val">'+esc(String(r.value))+note+'</span>'+
+      '<span class="dd-tags">'+relTag+srcTag+'</span></div>';
+  }).join('');
+  if(d.drivers.length) html += '<p class="muted" style="margin-top:12px">An diesem Tag erhöht: '+esc(d.drivers.join(", "))+'.</p>';
+  html += '<p class="muted" style="margin-top:6px;font-size:12px">„hoch / niedrig" ist immer im Vergleich zu deinem eigenen Durchschnitt.</p>';
+  ovBody.innerHTML = html;
+  ovFoot.innerHTML = '<button class="btn ghost" data-ovback>‹ Zurück zur Liste</button>';
+  $("[data-ovback]", ovFoot).addEventListener("click", openDataOverview);
+}
+
+$("#dataOverviewBtn").addEventListener("click", openDataOverview);
 
 function _updateMehrHint(){
   const hint = $("#mehrHint"); if(!hint) return;
@@ -527,12 +595,15 @@ function renderPredChart(days){
     const showLbl = days <= 7 || (days === 30 && i % 6 === 0) || (days === 90 && i % 15 === 0);
     const lbl     = showLbl ? DAY_ABBR[d.getDay()] : "";
     const crash   = h.isCrash ? `<span class="pc-crash">⚡</span>` : "";
-    return `<div class="pc-bar">
+    const tap     = h.score != null ? " tap" : "";
+    const dattr   = h.score != null ? ` data-date="${h.date}"` : "";
+    return `<div class="pc-bar${tap}"${dattr}>
       ${crash}
       <div class="pc-fill ${cls}" style="height:${barH}px"></div>
       ${lbl ? `<div class="pc-label">${lbl}</div>` : ""}
     </div>`;
   }).join("");
+  $$("#predChart .pc-bar.tap").forEach(b => b.addEventListener("click", () => openDayDetail(b.dataset.date)));
 }
 
 /* ---------- Low-Demand-Tag ---------- */
@@ -916,7 +987,7 @@ $("#garminFile").addEventListener("change", e => {
       statusEl.style.display = "block";
       statusEl.textContent = result.errors.length
         ? "Fehler: " + result.errors.join("; ")
-        : `✓ ${result.imported} Einträge importiert. Modell wird neu berechnet.`;
+        : `✓ ${result.imported} Tage übernommen – sichtbar im Verlauf und unter „Eingetragene Tage ansehen".`;
       setTimeout(() => { if(statusEl) statusEl.style.display = "none"; }, 5000);
     }
     markActive(); save();
@@ -924,6 +995,276 @@ $("#garminFile").addEventListener("change", e => {
   };
   reader.readAsText(file);
   e.target.value = "";
+});
+
+/* ---------- Praxis: Übungen + Journal ---------- */
+const PX = window.ANKER_PRAXIS || { exercises:[], journal:{ moods:[], prompts:[], promptsLow:[] } };
+let curPx = null, pxData = {};
+
+function renderPraxis(){ renderPraxisGrid(); renderPraxisHelps(); renderJournalToday(); renderJournalHistory(); }
+
+function practiceHelpCount(id){ return (state.practice||[]).filter(p => p.id===id && p.helped==="ja").length; }
+function renderPraxisGrid(){
+  const g = $("#praxisGrid"); if(!g) return;
+  g.innerHTML = PX.exercises.map(e => {
+    const badge = practiceHelpCount(e.id) > 0 ? '<span class="px-help">hilft dir</span>' : '';
+    return '<button class="tool px-card" data-px="'+e.id+'"><span class="ti">'+e.icon+'</span><b>'+e.title+'</b><span>'+e.sub+'</span>'+badge+'</button>';
+  }).join('');
+  $$("[data-px]", g).forEach(b => b.addEventListener("click", () => openPractice(b.dataset.px)));
+}
+function renderPraxisHelps(){
+  const el = $("#praxisHelps"); if(!el) return;
+  const counts = {};
+  (state.practice||[]).forEach(p => { if(p.helped==="ja") counts[p.id] = (counts[p.id]||0)+1; });
+  const top = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).slice(0,3);
+  if(!top.length){ el.innerHTML = ""; return; }
+  el.innerHTML = '<div class="sec-title">Was dir bisher hilft</div><div class="card">'+
+    top.map(id => { const e = PX.exercises.find(x=>x.id===id); return e ? '<div class="px-helprow"><span>'+e.icon+'</span><b>'+e.title+'</b><span class="muted">'+counts[id]+'×</span></div>' : ''; }).join('')+'</div>';
+}
+
+function openPractice(id){
+  curPx = PX.exercises.find(e=>e.id===id); if(!curPx) return;
+  pxData = {};
+  openOverlay(curPx.title, false);
+  const t = curPx.type;
+  if(t==="bodyscan") pxBodyscan();
+  else if(t==="check") pxCheck();
+  else if(t==="breath") pxBreathChoice();
+  else if(t==="grounding") pxGrounding();
+  else if(t==="defusion") pxDefusion();
+  else if(t==="compassion") pxCompassion();
+}
+function pxRating(){
+  pxStopBreath();
+  ovBody.innerHTML = '<div class="big-emoji">🌿</div><div class="lead" style="text-align:center">Wie war das für dich?</div>'+
+    '<p class="muted" style="text-align:center">Ich merke mir, was dir hilft – ganz ohne Wertung.</p>';
+  ovFoot.innerHTML = '<button class="btn" data-rate="ja">Hat geholfen</button>'+
+    '<button class="btn ghost" data-rate="etwas" style="margin-top:8px">Ein bisschen</button>'+
+    '<button class="btn ghost" data-rate="nein" style="margin-top:8px">Eher nicht</button>';
+  $$("[data-rate]", ovFoot).forEach(b => b.addEventListener("click", () => { logPractice(curPx.id, b.dataset.rate); closeOverlay(); renderPraxis(); }));
+}
+function logPractice(id, helped){
+  if(!Array.isArray(state.practice)) state.practice = [];
+  state.practice.push({ id, date:todayKey(), ts:Date.now(), helped });
+  markActive(); save();
+}
+
+/* Bodyscan */
+function pxBodyscan(){
+  const ex = curPx;
+  const seq = [{lead:ex.title, body:ex.intro, emoji:ex.icon}]
+    .concat(ex.regions.map(r=>({lead:r.part, body:r.text})))
+    .concat([{lead:"Angekommen", body:ex.closer, emoji:"🌿"}]);
+  let i = 0;
+  (function render(){
+    const s = seq[i], last = i===seq.length-1;
+    ovBody.innerHTML = (s.emoji ? '<div class="big-emoji">'+s.emoji+'</div>' : '')+'<div class="lead">'+s.lead+'</div><p class="muted">'+s.body+'</p>';
+    ovFoot.innerHTML = '<button class="btn" data-n>'+(last?"Wie war's?":"Weiter")+'</button>'+(i>0?'<button class="btn ghost" data-b style="margin-top:8px">Zurück</button>':'');
+    $("[data-n]", ovFoot).addEventListener("click", ()=>{ if(last) pxRating(); else { i++; render(); } });
+    const b=$("[data-b]",ovFoot); if(b) b.addEventListener("click", ()=>{ i--; render(); });
+  })();
+}
+
+/* Nervensystem-Check */
+function pxCheck(){
+  const ex = curPx;
+  ovBody.innerHTML = '<p class="muted">'+ex.intro+'</p>'+
+    '<input type="range" id="pxRange" class="px-range" min="0" max="100" value="50" aria-label="Nervensystem-Zustand">'+
+    '<div class="px-scale"><span>runtergefahren</span><span>ausgeglichen</span><span>überreizt</span></div>';
+  ovFoot.innerHTML = '<button class="btn" data-n>Weiter</button><button class="btn ghost" data-close style="margin-top:8px">Schließen</button>';
+  $("[data-close]", ovFoot).addEventListener("click", closeOverlay);
+  $("[data-n]", ovFoot).addEventListener("click", ()=>{
+    const v = +$("#pxRange").value;
+    const z = v<34 ? ex.zones.low : v<67 ? ex.zones.mid : ex.zones.high;
+    let html = '<div class="lead">'+z.word+'</div><p class="muted">'+z.text+'</p>';
+    if(z.suggest && z.suggest.length){
+      html += '<p class="muted" style="margin-top:10px">Magst du gleich etwas davon?</p>'+
+        z.suggest.map(sid => { const se = PX.exercises.find(x=>x.id===sid); return se ? '<button class="qopt" data-sg="'+sid+'">'+se.icon+'  '+se.title+'</button>' : ''; }).join('');
+    }
+    ovBody.innerHTML = html;
+    ovFoot.innerHTML = '<button class="btn ghost" data-fin>Fertig</button>';
+    $$("[data-sg]", ovBody).forEach(b => b.addEventListener("click", ()=> openPractice(b.dataset.sg)));
+    $("[data-fin]", ovFoot).addEventListener("click", pxRating);
+  });
+}
+
+/* Atem-Muster */
+function pxBreathChoice(){
+  const ex = curPx;
+  ovBody.innerHTML = '<p class="muted">Wähle ein Muster. Du kannst jederzeit aufhören.</p>'+
+    ex.patterns.map((p,i)=>'<button class="qopt" data-bp="'+i+'"><b>'+p.name+'</b><br><span class="muted">'+p.sub+'</span></button>').join('');
+  ovFoot.innerHTML = '<button class="btn ghost" data-close>Schließen</button>';
+  $$("[data-bp]", ovBody).forEach(b => b.addEventListener("click", ()=> pxBreathPlay(ex.patterns[+b.dataset.bp])));
+  $("[data-close]", ovFoot).addEventListener("click", closeOverlay);
+}
+function pxBreathPlay(pattern){
+  ovBody.innerHTML = '<div class="px-breath"><div class="pb-circle" id="pbCircle"><span id="pbLabel">Bereit</span></div><p class="note" id="pbSub">'+pattern.name+'</p></div>';
+  ovFoot.innerHTML = '<button class="btn" data-fin>Fertig</button><button class="btn ghost" data-bpback style="margin-top:8px">Anderes Muster</button>';
+  $("[data-fin]", ovFoot).addEventListener("click", ()=>{ pxStopBreath(); pxRating(); });
+  $("[data-bpback]", ovFoot).addEventListener("click", ()=>{ pxStopBreath(); pxBreathChoice(); });
+  setTimeout(()=> pxStartBreath(pattern), 350);
+}
+let pxBTimer = null, pxBPhase = null;
+function pxStartBreath(pattern){
+  pxStopBreath();
+  const motion = root.dataset.motion !== "off";
+  const circle = $("#pbCircle"), label = $("#pbLabel"), sub = $("#pbSub");
+  let pi = 0, round = 1;
+  (function phase(){
+    const ph = pattern.phases[pi];
+    if(label) label.textContent = ph.l;
+    if(circle && motion){ circle.style.transition = "transform "+ph.s+"s ease-in-out"; circle.style.transform = "scale("+ph.sc+")"; }
+    let rem = ph.s;
+    if(sub) sub.textContent = motion ? ("Runde "+round) : (ph.l+" · "+rem);
+    clearInterval(pxBPhase);
+    if(!motion) pxBPhase = setInterval(()=>{ rem--; if(sub) sub.textContent = ph.l+" · "+Math.max(0,rem); }, 1000);
+    pxBTimer = setTimeout(()=>{ pi=(pi+1)%pattern.phases.length; if(pi===0) round++; phase(); }, ph.s*1000);
+  })();
+}
+function pxStopBreath(){ clearTimeout(pxBTimer); clearInterval(pxBPhase); }
+
+/* Erdung mit Eingabe */
+function pxGrounding(){
+  const ex = curPx;
+  const seq = [{intro:true}].concat(ex.senses).concat([{closer:true}]);
+  let i = 0;
+  (function render(){
+    const s = seq[i];
+    if(s.intro){
+      ovBody.innerHTML = '<div class="big-emoji">'+ex.icon+'</div><div class="lead">Erdung</div><p class="muted">'+ex.intro+'</p>';
+      ovFoot.innerHTML = '<button class="btn" data-n>Los</button>';
+    } else if(s.closer){
+      ovBody.innerHTML = '<div class="big-emoji">🌿</div><div class="lead">Angekommen</div><p class="muted">'+ex.closer+'</p>';
+      ovFoot.innerHTML = '<button class="btn" data-n>Wie war\'s?</button>';
+    } else {
+      ovBody.innerHTML = '<div class="lead">'+s.n+' '+s.label+'</div><p class="muted">Benenne sie – tippen oder nur denken.</p><textarea class="qfree" rows="2" placeholder="z. B. …"></textarea>';
+      ovFoot.innerHTML = '<button class="btn" data-n>Weiter</button>'+(i>1?'<button class="btn ghost" data-b style="margin-top:8px">Zurück</button>':'');
+    }
+    $("[data-n]", ovFoot).addEventListener("click", ()=>{ if(s.closer) pxRating(); else { i++; render(); } });
+    const b=$("[data-b]",ovFoot); if(b) b.addEventListener("click", ()=>{ i--; render(); });
+  })();
+}
+
+/* Gedanken-Enthakung (ACT) */
+function pxDefusion(){
+  const ex = curPx; pxData.thought = "";
+  let i = 0;
+  (function render(){
+    if(i===0){
+      ovBody.innerHTML = '<div class="big-emoji">'+ex.icon+'</div><div class="lead">'+ex.s1lead+'</div><p class="muted">'+ex.s1+'</p><textarea class="qfree" id="pxThought" rows="3" placeholder="z. B. Ich bin zu viel."></textarea>';
+      ovFoot.innerHTML = '<button class="btn" data-n>Weiter</button><button class="btn ghost" data-close style="margin-top:8px">Schließen</button>';
+      $("[data-close]", ovFoot).addEventListener("click", closeOverlay);
+    } else if(i===1){
+      ovBody.innerHTML = '<p class="muted">'+ex.s2+'</p><div class="px-quote">Ich habe gerade den Gedanken, dass '+esc(pxData.thought||"…")+'.</div>';
+      ovFoot.innerHTML = '<button class="btn" data-n>Weiter</button><button class="btn ghost" data-b style="margin-top:8px">Zurück</button>';
+    } else if(i===2){
+      ovBody.innerHTML = '<p class="muted">'+ex.s3+'</p><div class="px-quote">Ich bemerke, dass ich den Gedanken habe, dass '+esc(pxData.thought||"…")+'.</div>';
+      ovFoot.innerHTML = '<button class="btn" data-n>Weiter</button><button class="btn ghost" data-b style="margin-top:8px">Zurück</button>';
+    } else {
+      ovBody.innerHTML = '<div class="lead">'+ex.s4lead+'</div><p class="muted">'+ex.s4+'</p>';
+      ovFoot.innerHTML = '<button class="btn" data-n>Wie war\'s?</button><button class="btn ghost" data-b style="margin-top:8px">Zurück</button>';
+    }
+    $("[data-n]", ovFoot).addEventListener("click", ()=>{
+      if(i===0){ const t=$("#pxThought"); pxData.thought = (t&&t.value.trim())||""; }
+      if(i>=3) pxRating(); else { i++; render(); }
+    });
+    const b=$("[data-b]",ovFoot); if(b) b.addEventListener("click", ()=>{ i--; render(); });
+  })();
+}
+
+/* Selbstmitgefühl */
+function pxCompassion(){
+  const ex = curPx; pxData = {};
+  let i = 0;
+  (function render(){
+    if(i===0){
+      ovBody.innerHTML = '<div class="big-emoji">'+ex.icon+'</div><div class="lead">'+ex.s1lead+'</div><p class="muted">'+ex.s1+'</p><textarea class="qfree" id="pxC1" rows="2" placeholder="…"></textarea>';
+      ovFoot.innerHTML = '<button class="btn" data-n>Weiter</button><button class="btn ghost" data-close style="margin-top:8px">Schließen</button>';
+      $("[data-close]", ovFoot).addEventListener("click", closeOverlay);
+    } else if(i===1){
+      ovBody.innerHTML = '<p class="muted">'+ex.s2+'</p>';
+      ovFoot.innerHTML = '<button class="btn" data-n>Weiter</button><button class="btn ghost" data-b style="margin-top:8px">Zurück</button>';
+    } else if(i===2){
+      ovBody.innerHTML = '<div class="lead">'+ex.s3lead+'</div><p class="muted">'+ex.s3+'</p><textarea class="qfree" id="pxC3" rows="3" placeholder="Schreib es dir – wie zu einem guten Freund."></textarea>';
+      ovFoot.innerHTML = '<button class="btn" data-n>Weiter</button><button class="btn ghost" data-b style="margin-top:8px">Zurück</button>';
+    } else {
+      const note = (pxData.kind||"").trim();
+      ovBody.innerHTML = '<div class="lead">'+ex.s4lead+'</div><p class="muted">'+ex.s4+'</p>'+(note ? '<div class="px-quote">'+esc(note)+'</div>' : '');
+      ovFoot.innerHTML = (note ? '<button class="btn" data-jrnl>Diese Worte ins Journal</button><button class="btn ghost" data-n style="margin-top:8px">Wie war\'s?</button>' : '<button class="btn" data-n>Wie war\'s?</button>');
+      const jr = $("[data-jrnl]", ovFoot);
+      if(jr) jr.addEventListener("click", ()=>{
+        if(!Array.isArray(state.journal)) state.journal = [];
+        state.journal.push({ ts:Date.now(), date:todayKey(), text:note, mood:null, prompt:"Selbstmitgefühl", energy: todayLog().energy||null });
+        markActive(); save(); renderJournalHistory();
+        jr.textContent = "Im Journal ✓"; jr.disabled = true;
+      });
+    }
+    $("[data-n]", ovFoot).addEventListener("click", ()=>{
+      if(i===2){ const t=$("#pxC3"); pxData.kind = (t&&t.value)||""; }
+      if(i>=3) pxRating(); else { i++; render(); }
+    });
+    const b=$("[data-b]",ovFoot); if(b) b.addEventListener("click", ()=>{ i--; render(); });
+  })();
+}
+
+/* ---------- Journal ---------- */
+function moodColor(v){ return { 1:"var(--bad)", 2:"var(--coral)", 3:"var(--warn)", 4:"var(--teal)", 5:"var(--good)" }[v] || "var(--line)"; }
+function moodLabel(v){ const m = (PX.journal.moods||[]).find(x=>x.v===v); return m ? m.label : ""; }
+function journalPromptToday(){
+  const J = PX.journal, e = todayLog().energy, low = (e==="leer"||e==="wenig");
+  const pool = low ? (J.promptsLow||[]) : (J.prompts||[]);
+  if(!pool.length) return "";
+  return pool[Math.floor(Date.now()/86400000) % pool.length];
+}
+let jMood = null;
+function renderJournalToday(){
+  const p = $("#jPrompt"); if(!p) return;
+  p.textContent = journalPromptToday();
+  jMood = null;
+  const mr = $("#jMoods");
+  mr.innerHTML = (PX.journal.moods||[]).map(m => '<button class="jp-mood" data-mood="'+m.v+'" title="'+esc(m.label)+'" aria-label="'+esc(m.label)+'"><span class="jp-dot" style="background:'+moodColor(m.v)+'"></span></button>').join('');
+  $$("[data-mood]", mr).forEach(b => b.addEventListener("click", ()=>{ jMood = +b.dataset.mood; $$("[data-mood]", mr).forEach(x=>x.classList.toggle("sel", x===b)); }));
+}
+function renderJournalHistory(){
+  const el = $("#jHistory"); if(!el) return;
+  const entries = (state.journal||[]).slice().sort((a,b)=>b.ts-a.ts);
+  if(!entries.length){
+    el.innerHTML = '<p class="muted" style="margin-top:14px;padding:0 4px">Noch keine Einträge. Auch ein einziges Wort zählt – und in ein paar Wochen liest du hier deine eigene Entwicklung.</p>';
+    return;
+  }
+  el.innerHTML = '<div class="sec-title">Rückschau · '+entries.length+' Eintr'+(entries.length===1?"ag":"äge")+'</div>'+
+    entries.slice(0,40).map(e => {
+      const snip = e.text ? esc(e.text.slice(0,70))+(e.text.length>70?"…":"") : "(nur Stimmung)";
+      return '<button class="j-entry" data-j="'+e.ts+'">'+(e.mood?'<span class="jp-dot" style="background:'+moodColor(e.mood)+'"></span>':'<span class="jp-dot" style="background:var(--line)"></span>')+'<span class="j-meta"><b>'+fmtDay(e.date)+'</b><span class="muted">'+snip+'</span></span></button>';
+    }).join('');
+  $$("[data-j]", el).forEach(b => b.addEventListener("click", ()=> openJournalEntry(+b.dataset.j)));
+}
+function openJournalEntry(ts){
+  const e = (state.journal||[]).find(x=>x.ts===ts); if(!e) return;
+  openOverlay(fmtDay(e.date), false);
+  ovBody.innerHTML =
+    (e.prompt ? '<p class="muted" style="margin-bottom:8px">'+esc(e.prompt)+'</p>' : '')+
+    (e.mood ? '<p style="margin-bottom:10px"><span class="jp-dot" style="display:inline-block;vertical-align:middle;background:'+moodColor(e.mood)+'"></span> <span class="muted">'+esc(moodLabel(e.mood))+'</span></p>' : '')+
+    '<p style="font-size:15px;line-height:1.6;white-space:pre-wrap">'+esc(e.text||"(nur Stimmung festgehalten)")+'</p>';
+  ovFoot.innerHTML = '<button class="btn ghost" data-jdel>Eintrag löschen</button><button class="btn ghost" data-close style="margin-top:8px">Schließen</button>';
+  $("[data-close]", ovFoot).addEventListener("click", closeOverlay);
+  $("[data-jdel]", ovFoot).addEventListener("click", ()=>{
+    if(confirm("Diesen Eintrag löschen? Das lässt sich nicht rückgängig machen.")){
+      state.journal = (state.journal||[]).filter(x=>x.ts!==ts); save(); closeOverlay(); renderJournalHistory();
+    }
+  });
+}
+const _jSaveBtn = $("#jSave");
+if(_jSaveBtn) _jSaveBtn.addEventListener("click", ()=>{
+  const t = $("#jText").value.trim();
+  if(!t && !jMood) return;
+  if(!Array.isArray(state.journal)) state.journal = [];
+  state.journal.push({ ts:Date.now(), date:todayKey(), text:t, mood:jMood, prompt:journalPromptToday(), energy: todayLog().energy||null });
+  markActive(); save();
+  $("#jText").value = "";
+  const btn = $("#jSave"); btn.textContent = "Gespeichert ✓";
+  setTimeout(()=>{ const b=$("#jSave"); if(b) b.textContent = "Eintrag speichern"; }, 1500);
+  renderJournalToday(); renderJournalHistory();
 });
 
 /* ---------- Start ---------- */
@@ -942,6 +1283,7 @@ function initAll(){
   paintEnergy(); renderStreak();
   renderPath();
   renderVerstehen();
+  renderPraxis();
   paintAmp(); renderEnergyTab(); paintLowDemand();
   renderProfile(); renderAchievements();
   save();
