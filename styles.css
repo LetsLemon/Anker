@@ -263,6 +263,56 @@ body{
 .pred-pattern p{margin:0;font-size:13px;line-height:1.5;color:var(--text)}
 .pred-pattern.learn p{color:var(--teal-d);font-weight:600}
 
+/* Dein Weg */
+.weg-head{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;margin-top:4px}
+.weg-head b{font-size:14px}
+.weg-prog{height:7px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:10px}
+.weg-progfill{height:100%;background:var(--teal);border-radius:6px;transition:width .4s}
+.weg-today{width:100%;text-align:left;display:flex;flex-direction:column;gap:3px;background:linear-gradient(135deg,var(--teal),var(--teal-d));color:#fff;border:none;border-radius:var(--radius);padding:15px;cursor:pointer;font-family:inherit}
+[data-theme="dark"] .weg-today{color:#06110e}
+.weg-today:active{transform:scale(.98)}
+.wt-tag{font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.85;font-weight:700}
+.weg-today b{font-size:16px}
+.wt-ziel{font-size:13px;opacity:.95;line-height:1.4}
+.wt-meta{font-size:11.5px;opacity:.8;margin-top:2px}
+.wt-go{font-size:13px;font-weight:700;margin-top:8px}
+.weg-wait{border-color:var(--lav)}
+.weg-days{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.weg-day{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 13px;font:inherit;color:inherit;text-align:left;width:100%}
+.weg-day.cur{border-color:var(--teal);border-width:2px}
+.weg-day.lock{opacity:.5}
+.weg-day.done,.weg-day.cur{cursor:pointer}
+.wd-n{flex:0 0 auto;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;background:var(--surface2);color:var(--muted)}
+.weg-day.done .wd-n{background:var(--teal);color:#fff}
+[data-theme="dark"] .weg-day.done .wd-n{color:#06110e}
+.weg-day.cur .wd-n{background:var(--teal-l);color:var(--teal-d)}
+.wd-t{font-size:13.5px}
+.weg-goals{margin-top:14px;background:var(--lav-l);border-radius:14px;padding:12px 14px}
+.weg-goal{font-size:13.5px;color:var(--text);padding:3px 0}
+.weg-goal::before{content:"○ ";color:var(--lav)}
+.weg-pace{display:flex;align-items:center;gap:7px;margin-top:14px;flex-wrap:wrap}
+.weg-pace .muted{font-size:12px}
+.weg-pacebtn{border:1px solid var(--line);background:var(--surface);border-radius:20px;padding:6px 12px;font-size:12px;cursor:pointer;font:inherit;color:inherit}
+.weg-pacebtn.sel{background:var(--teal-l);border-color:var(--teal);color:var(--teal-d)}
+.weg-meta{font-size:12px;color:var(--muted);margin:2px 0 12px}
+.weg-src{font-size:11.5px;color:var(--muted);font-style:italic;margin-top:8px}
+.weg-rlead{font-size:18px;font-weight:700;line-height:1.4;margin:6px 0 10px}
+.weg-read{font-size:15px;line-height:1.72;color:var(--text);margin:0 0 13px}
+.weg-ref{font-size:12.5px;color:var(--muted);margin:0 0 8px}
+.weg-ex{background:var(--surface2);border-left:3px solid var(--teal);border-radius:0 12px 12px 0;padding:11px 14px;margin:0 0 13px;font-size:13.5px;line-height:1.6;color:var(--muted)}
+.weg-ex-lab{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--teal-d);font-weight:700;margin-bottom:5px}
+.weg-ex>div{margin-top:6px}
+.weg-ex>div:first-of-type{margin-top:0}
+.chip-btn{cursor:pointer;-webkit-appearance:none;appearance:none}
+.chip-btn:active{transform:scale(.98)}
+.w5-row{margin-top:14px}
+.w5-q{font-size:13.5px;margin-bottom:6px}
+.w5-opts{display:flex;gap:6px}
+.w5-b{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:inherit}
+.w5-b.sel{background:var(--teal);border-color:var(--teal);color:#fff}
+[data-theme="dark"] .w5-b.sel{color:#06110e}
+.w5-score{margin-top:14px;font-size:14px;font-weight:700;color:var(--teal-d);text-align:center}
+
 /* Praxis: Übungen */
 .px-card{position:relative}
 .px-help{position:absolute;top:8px;right:8px;font-size:10px;background:var(--teal-l);color:var(--teal-d);padding:2px 7px;border-radius:10px}

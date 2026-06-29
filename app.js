@@ -21,6 +21,7 @@ const defaultState = () => ({
   customWarns: [],     // selbst hinzugefügte Frühwarnzeichen
   practice: [],        // [{id, date, ts, helped}] – welche Übung wann, wie hilfreich
   journal: [],         // [{ts, date, text, mood, prompt, energy}]
+  weg: { pace:"daily", done:{}, entries:{}, goals:[], microGoals:[], lastDoneDate:null, baselineWho5:null },
   profile: null,       // wird beim ersten Bearbeiten zu { name, subtitle, strengths, triggers, helps }
   predictor: null      // { baseline, weights, lastUpdated } – Burnout-Prädiktor-Zustand
 });
@@ -51,7 +52,7 @@ function markActive(){
 }
 
 /* ---------- Navigation ---------- */
-const VIEWS = { pfad:"v-pfad", calm:"v-calm", alltag:"v-alltag", praxis:"v-praxis", energy:"v-energy", me:"v-me" };
+const VIEWS = { pfad:"v-pfad", calm:"v-calm", alltag:"v-alltag", energy:"v-energy", me:"v-me" };
 function go(v, btn){
   $$(".view").forEach(e=>e.classList.remove("active"));
   $("#"+VIEWS[v]).classList.add("active");
@@ -81,6 +82,8 @@ function paintEnergy(){
   $("#subgreet").textContent  = k ? eSub[k] : "Schön, dass du da bist. Kein Druck heute.";
 }
 $$(".epill").forEach(b=> b.addEventListener("click", ()=> setEnergy(b.dataset.energy)));
+// Energie-Chip im Header ist die einzige Stelle, um die Tagesenergie zu setzen (öffnet das Alltag-Tool)
+(function(){ const c=$("#energyChip"); if(c) c.addEventListener("click", ()=> alEnergy()); })();
 
 /* ---------- Sanfte Serie ---------- */
 function renderStreak(){
@@ -101,6 +104,7 @@ function unitDone(unitIdx){
 }
 function renderPath(){
   const wrap = $("#pathContainer");
+  if(!wrap) return;
   wrap.innerHTML = "";
   DATA.units.forEach((unit, ui)=>{
     const unlocked = ui===0 || unitDone(ui-1);
@@ -1267,6 +1271,178 @@ if(_jSaveBtn) _jSaveBtn.addEventListener("click", ()=>{
   renderJournalToday(); renderJournalHistory();
 });
 
+/* ---------- Dein Weg (mehrwöchiges Programm, ersetzt den Pfad) ---------- */
+function wegState(){
+  if(!state.weg || typeof state.weg!=="object") state.weg = {};
+  const w = state.weg;
+  if(typeof w.pace!=="string") w.pace = "daily";
+  if(!w.done    || typeof w.done!=="object")    w.done = {};
+  if(!w.entries || typeof w.entries!=="object") w.entries = {};
+  if(!Array.isArray(w.goals))      w.goals = [];
+  if(!Array.isArray(w.microGoals)) w.microGoals = [];
+  if(!("lastDoneDate" in w))  w.lastDoneDate = null;
+  if(!("baselineWho5" in w))  w.baselineWho5 = null;
+  return w;
+}
+function wegSteps(){
+  const W = window.ANKER_WEG || { weeks:[] };
+  const out = [];
+  W.weeks.forEach(wk => wk.days.forEach(d => out.push({ week:wk, day:d, stepId:"w"+wk.num+"d"+d.n })));
+  return out;
+}
+function wegDoneCount(){ const d = wegState().done; return Object.keys(d).filter(k=>d[k]).length; }
+function wegCurrentIndex(){ const list = wegSteps(), d = wegState().done; for(let i=0;i<list.length;i++){ if(!d[list[i].stepId]) return i; } return list.length; }
+function wegDayDiff(a,b){ return Math.floor((new Date(b+"T00:00:00") - new Date(a+"T00:00:00")) / 86400000); }
+function wegAvailable(){
+  const idx = wegCurrentIndex(), list = wegSteps(), w = wegState();
+  if(idx>=list.length) return false;
+  if(idx===0) return true;
+  if(w.pace==="free") return true;
+  if(!w.lastDoneDate) return true;
+  return wegDayDiff(w.lastDoneDate, todayKey()) >= (w.pace==="slow"?2:1);
+}
+
+function renderWeg(){
+  const host = $("#wegContainer"); if(!host) return;
+  const W = window.ANKER_WEG;
+  if(!W){ host.innerHTML = ""; return; }
+  const w = wegState();
+  const list = wegSteps(), idx = wegCurrentIndex(), done = w.done;
+  const doneCount = wegDoneCount();
+  const allDone = idx>=list.length;
+  const cur = allDone ? null : list[idx];
+  const curWeek = allDone ? list[list.length-1].week : cur.week;
+
+  let html = '<div class="sec-title">Dein Weg</div>'+
+    '<div class="weg-head"><b>Woche '+curWeek.num+' · '+curWeek.title+'</b>'+
+    '<div class="muted" style="font-size:12px;margin-top:2px">'+curWeek.goal+'</div></div>'+
+    '<div class="weg-prog"><div class="weg-progfill" style="width:'+Math.round(doneCount/list.length*100)+'%"></div></div>'+
+    '<div class="muted" style="font-size:11.5px;margin:4px 2px 10px">'+doneCount+' von '+list.length+' Schritten</div>';
+
+  if(allDone){
+    html += '<div class="card"><h3>Geschafft 🌱</h3><p>Du hast diesen Abschnitt abgeschlossen. Weitere Wochen kommen bald dazu.</p></div>';
+  } else if(wegAvailable()){
+    const d = cur.day;
+    html += '<button class="weg-today" data-weg="'+idx+'"><span class="wt-tag">Heute · Tag '+d.n+'</span>'+
+      '<b>'+d.title+'</b><span class="wt-ziel">'+d.ziel+'</span>'+
+      '<span class="wt-meta">'+d.dauer+' · '+d.material+'</span><span class="wt-go">Beginnen ›</span></button>';
+  } else {
+    html += '<div class="card weg-wait"><h3>🌙 Dein nächster Schritt wartet</h3>'+
+      '<p>Du hast heute schon einen Schritt gemacht. Morgen geht es weiter – Pausen gehören zum Weg, hier geht nichts verloren.</p></div>';
+  }
+
+  html += '<div class="weg-days">'+curWeek.days.map(d=>{
+    const sid = "w"+curWeek.num+"d"+d.n;
+    const isDone = !!done[sid];
+    const isCur = !allDone && cur.week.num===curWeek.num && cur.day.n===d.n;
+    const cls = isDone?"done":isCur?"cur":"lock";
+    const tap = isDone || (isCur && wegAvailable());
+    const tag = tap ? 'button class="weg-day '+cls+'" data-wegopen="'+sid+'"' : 'div class="weg-day '+cls+'"';
+    const close = tap ? "button" : "div";
+    return '<'+tag+'><span class="wd-n">'+(isDone?"✓":d.n)+'</span><span class="wd-t">'+d.title+'</span></'+close+'>';
+  }).join('')+'</div>';
+
+  const goals = w.goals.filter(g=>g && g.trim());
+  if(goals.length){
+    html += '<div class="weg-goals"><div class="al-h">Meine Ziele</div>'+goals.map(g=>'<div class="weg-goal">'+esc(g)+'</div>').join('')+'</div>';
+  }
+
+  html += '<div class="weg-pace"><span class="muted">Tempo</span>'+
+    [["daily","täglich"],["slow","alle paar Tage"],["free","frei"]].map(p=>'<button class="weg-pacebtn'+(w.pace===p[0]?" sel":"")+'" data-pace="'+p[0]+'">'+p[1]+'</button>').join('')+'</div>';
+
+  host.innerHTML = html;
+  const t = $("[data-weg]", host); if(t) t.addEventListener("click", ()=> openWegDay(+t.dataset.weg));
+  $$("[data-wegopen]", host).forEach(b => b.addEventListener("click", ()=>{ const i = wegSteps().findIndex(s=>s.stepId===b.dataset.wegopen); if(i>=0) openWegDay(i); }));
+  $$("[data-pace]", host).forEach(b => b.addEventListener("click", ()=>{ wegState().pace = b.dataset.pace; save(); renderWeg(); }));
+}
+
+let wegSid = null, wegDay = null, wegBlocks = [], wbI = 0;
+function openWegDay(idx){
+  wegState();
+  const step = wegSteps()[idx]; if(!step) return;
+  wegSid = step.stepId; wegDay = step.day; wegBlocks = step.day.blocks; wbI = 0;
+  openOverlay("Tag "+step.day.n+" · "+step.day.title, false);
+  renderWegBlock();
+}
+function wegEntry(){ const w = wegState(); if(!w.entries[wegSid]) w.entries[wegSid] = {}; return w.entries[wegSid]; }
+function renderWegBlock(){
+  const b = wegBlocks[wbI], ent = wegEntry(), w = wegState();
+  let html = "";
+  if(b.t==="intro"){
+    html = '<div class="big-emoji">🧭</div><div class="lead">Ziel: '+wegDay.ziel+'</div>'+
+      '<p class="weg-meta">'+wegDay.dauer+' · '+wegDay.material+'</p>'+(b.body?'<p class="weg-read">'+b.body+'</p>':"");
+  } else if(b.t==="read"){
+    const paras = Array.isArray(b.body) ? b.body : [b.body];
+    html = (b.lead?'<div class="weg-rlead">'+b.lead+'</div>':"")+
+      paras.map(p=>'<p class="weg-read">'+p+'</p>').join('')+
+      (b.quelle?'<p class="weg-src">'+b.quelle+'</p>':"");
+  } else if(b.t==="write"){
+    const ex = b.example ? '<div class="weg-ex"><span class="weg-ex-lab">Beispiel</span>'+(Array.isArray(b.example)?b.example.map(e=>'<div>'+e+'</div>').join(''):b.example)+'</div>' : "";
+    html = (b.lead?'<div class="weg-rlead">'+b.lead+'</div>':"")+(b.body?'<p class="weg-read">'+b.body+'</p>':"")+ex+
+      b.fields.map(f=>'<textarea class="qfree" data-wf="'+f.key+'" rows="'+(f.rows||2)+'" placeholder="'+esc(f.ph)+'">'+esc(ent[f.key]||"")+'</textarea>').join('');
+  } else if(b.t==="goals" || b.t==="microgoals"){
+    const arr = b.t==="goals" ? w.goals : w.microGoals;
+    const ref = (b.t==="microgoals" && w.goals.filter(g=>g&&g.trim()).length) ? '<p class="weg-ref">Deine Bereiche: '+w.goals.filter(g=>g&&g.trim()).map(esc).join(" · ")+'</p>' : "";
+    html = (b.lead?'<div class="weg-rlead">'+b.lead+'</div>':"")+(b.body?'<p class="weg-read">'+b.body+'</p>':"")+ref+
+      [0,1,2].map(i=>'<textarea class="qfree" data-wgg="'+i+'" rows="1" placeholder="'+(i+1)+'. …">'+esc(arr[i]||"")+'</textarea>').join('');
+  } else if(b.t==="who5"){
+    const W5 = window.ANKER_WEG.who5; const saved = ent.who5 || {};
+    html = (b.lead?'<div class="lead">'+b.lead+'</div>':"")+'<p class="muted">'+(b.body||W5.intro)+'</p>'+
+      W5.items.map((it,qi)=>'<div class="w5-row"><div class="w5-q">'+it+'</div><div class="w5-opts">'+
+        W5.scale.map((sc,v)=>'<button class="w5-b'+(saved[qi]===v?" sel":"")+'" data-w5q="'+qi+'" data-w5v="'+v+'" title="'+esc(sc)+'" aria-label="'+esc(sc)+'">'+v+'</button>').join('')+
+      '</div></div>').join('')+'<div class="w5-score" id="w5score"></div>';
+  } else if(b.t==="reflect"){
+    html = '<div class="lead">'+b.q+'</div><textarea class="qfree" data-wf="reflect" rows="3" placeholder="In deinen eigenen Worten …">'+esc(ent.reflect||"")+'</textarea>';
+  } else if(b.t==="done"){
+    html = '<div class="reward"><div class="ring">🌱</div><div class="lead">Schritt geschafft</div><p class="muted">'+b.text+'</p></div>';
+  }
+  ovBody.innerHTML = html; ovBody.scrollTop = 0;
+
+  if(b.t==="who5"){
+    const W5 = window.ANKER_WEG.who5; const e2 = wegEntry(); if(!e2.who5) e2.who5 = {};
+    const upd = ()=>{ const vals = Object.keys(e2.who5).map(k=>e2.who5[k]); const sc = $("#w5score");
+      if(vals.length===W5.items.length){ const raw = vals.reduce((a,b)=>a+b,0); e2.who5score = raw*4; sc.textContent = "Dein Wert: "+(raw*4)+" / 100"; }
+      else sc.textContent = vals.length+" von "+W5.items.length+" beantwortet"; };
+    $$("[data-w5q]", ovBody).forEach(bb => bb.addEventListener("click", ()=>{ const qi=+bb.dataset.w5q; e2.who5[qi]=+bb.dataset.w5v; $$('[data-w5q="'+qi+'"]', ovBody).forEach(x=>x.classList.toggle("sel", x===bb)); upd(); }));
+    upd();
+  }
+
+  let foot = '<button class="btn" data-wnext>'+(b.t==="done"?"Fertig":"Weiter")+'</button>';
+  if(b.t==="done" && b.tool) foot += '<button class="btn ghost" data-wtool style="margin-top:8px">'+b.tool.label+'</button>';
+  if(wbI>0) foot += '<button class="btn ghost" data-wback style="margin-top:8px">Zurück</button>';
+  if(b.t!=="done") foot += '<button class="btn ghost" data-wclose style="margin-top:8px">Später</button>';
+  ovFoot.innerHTML = foot;
+
+  function persist(){
+    const e = wegEntry();
+    $$("[data-wf]", ovBody).forEach(t => e[t.dataset.wf] = t.value);
+    if(b.t==="goals" || b.t==="microgoals"){
+      const arr = b.t==="goals" ? wegState().goals : wegState().microGoals;
+      $$("[data-wgg]", ovBody).forEach(t => arr[+t.dataset.wgg] = t.value.trim());
+    }
+    if(b.t==="who5" && e.who5score!=null) wegState().baselineWho5 = e.who5score;
+    save();
+  }
+  $("[data-wnext]", ovFoot).addEventListener("click", ()=>{ persist(); if(b.t==="done") wegComplete(false); else { wbI++; renderWegBlock(); } });
+  const bk = $("[data-wback]", ovFoot); if(bk) bk.addEventListener("click", ()=>{ persist(); wbI--; renderWegBlock(); });
+  const cl = $("[data-wclose]", ovFoot); if(cl) cl.addEventListener("click", ()=>{ persist(); closeOverlay(); renderWeg(); });
+  const tl = $("[data-wtool]", ovFoot); if(tl) tl.addEventListener("click", ()=>{ persist(); wegComplete(true); wegTool(b.tool); });
+}
+function wegComplete(noClose){
+  const w = wegState(); w.done[wegSid] = true; w.lastDoneDate = todayKey(); markActive(); save();
+  if(!noClose){ closeOverlay(); renderWeg(); }
+}
+function wegTool(tool){
+  closeOverlay(); renderWeg();
+  if(tool.go) go(tool.go);
+  if(tool.action==="mehr" || tool.action==="warn"){
+    const mb = $("#mehrBtn"), mf = $("#mehrForm");
+    if(mb && mf && !mf.innerHTML.trim()) mb.click();
+  } else if(tool.action==="profile"){
+    openProfileEditor();
+  }
+}
+
 /* ---------- Start ---------- */
 function initSettingsDefaults(){
   // Beim ersten Start System-Einstellungen respektieren
@@ -1281,8 +1457,7 @@ function initAll(){
   initSettingsDefaults();
   applyTheme(); applyMotion(); paintSwitches();
   paintEnergy(); renderStreak();
-  renderPath();
-  renderVerstehen();
+  renderWeg();
   renderPraxis();
   paintAmp(); renderEnergyTab(); paintLowDemand();
   renderProfile(); renderAchievements();

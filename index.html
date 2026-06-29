@@ -36,7 +36,7 @@
       </div>
     </div>
     <div class="stats">
-      <div class="chip"><span class="ico">🔋</span><div><b id="energyVal">Tippen →</b><span>Energie heute</span></div></div>
+      <button class="chip chip-btn" id="energyChip"><span class="ico">🔋</span><div><b id="energyVal">Tippen →</b><span>Energie heute</span></div></button>
       <div class="chip"><span class="ico">🛡️</span><div><b id="streakVal">0</b><span>Tage · geschützt</span></div></div>
     </div>
   </header>
@@ -45,22 +45,8 @@
 
     <!-- ========== PFAD ========== -->
     <section class="view active" id="v-pfad">
-      <div class="daycard">
-        <h2>Wie viel Energie hast du heute?</h2>
-        <p>Danach passe ich den Tag an dich an – nicht umgekehrt.</p>
-        <div class="energy-pills">
-          <button class="epill" data-energy="voll">Viel</button>
-          <button class="epill" data-energy="mittel">Mittel</button>
-          <button class="epill" data-energy="wenig">Wenig</button>
-          <button class="epill" data-energy="leer">Leer</button>
-        </div>
-      </div>
-
-      <div class="sec-title">Dein Pfad · frei wählbar</div>
-      <div id="pathContainer"></div>
-
-      <!-- Verstehen · frei durchstöberbar, in den Pfad eingebettet -->
-      <div id="verContainer"></div>
+      <!-- Dein Weg · einziger Inhalt des Pfads (Verstehen-Themen kommen später in den Weg) -->
+      <div id="wegContainer"></div>
     </section>
 
     <!-- ========== BERUHIGEN ========== -->
@@ -75,8 +61,22 @@
       </div>
       <div class="card">
         <h3>Warum „Sofort-Hilfe" immer sichtbar ist</h3>
-        <p>Im Überlastungsmoment kann das Denken nicht mehr suchen. Deshalb liegt der Beruhigen-Tab fest an gleicher Stelle – vorhersehbar, ein Tipp entfernt.</p>
+        <p>Im Überlastungsmoment kann das Denken nicht mehr suchen. Deshalb liegt die Sofort-Hilfe fest an gleicher Stelle – vorhersehbar, ein Tipp entfernt.</p>
       </div>
+
+      <div class="sec-title">Übungen · jederzeit, so oft du magst</div>
+      <p class="muted" style="margin:2px 4px 0">Praktiken, zu denen du zurückkommst. Nichts musst du.</p>
+      <div class="tool-grid" id="praxisGrid" style="margin-top:12px"></div>
+      <div id="praxisHelps"></div>
+
+      <div class="sec-title">Journal · in deinem Tempo</div>
+      <div class="card" style="margin-top:6px">
+        <p class="jp-prompt" id="jPrompt"></p>
+        <textarea class="jp-text" id="jText" rows="3" placeholder="Schreib, was da ist – ein Wort reicht."></textarea>
+        <div class="jp-moodrow"><span class="jp-moodlab">Wie war's?</span><div class="jp-moods" id="jMoods"></div></div>
+        <button class="btn" id="jSave">Eintrag speichern</button>
+      </div>
+      <div id="jHistory"></div>
     </section>
 
     <!-- ========== ALLTAG ========== -->
@@ -94,23 +94,6 @@
         <h3>Warum das hilft</h3>
         <p>Hier geht es nicht darum, dich zu „optimieren". Es geht darum, Hürden kleiner zu machen, Überlastung vorzubeugen und dir das Formulieren abzunehmen, wenn Worte schwerfallen.</p>
       </div>
-    </section>
-
-    <!-- ========== PRAXIS ========== -->
-    <section class="view" id="v-praxis">
-      <div class="sec-title">Übungen · jederzeit, so oft du magst</div>
-      <p class="muted" style="margin:2px 4px 0">Keine Lektionen zum Wegklicken – Praktiken, zu denen du zurückkommst. Nichts musst du.</p>
-      <div class="tool-grid" id="praxisGrid" style="margin-top:12px"></div>
-      <div id="praxisHelps"></div>
-
-      <div class="sec-title">Journal · in deinem Tempo</div>
-      <div class="card" style="margin-top:6px">
-        <p class="jp-prompt" id="jPrompt"></p>
-        <textarea class="jp-text" id="jText" rows="3" placeholder="Schreib, was da ist – ein Wort reicht."></textarea>
-        <div class="jp-moodrow"><span class="jp-moodlab">Wie war's?</span><div class="jp-moods" id="jMoods"></div></div>
-        <button class="btn" id="jSave">Eintrag speichern</button>
-      </div>
-      <div id="jHistory"></div>
     </section>
 
     <!-- ========== ENERGIE ========== -->
@@ -217,7 +200,6 @@
     <button class="on" data-go="pfad"><span class="ti">🧭</span>Pfad</button>
     <button data-go="calm"><span class="ti">🌬️</span>Beruhigen</button>
     <button data-go="alltag"><span class="ti">🧰</span>Alltag</button>
-    <button data-go="praxis"><span class="ti">🌿</span>Praxis</button>
     <button data-go="energy"><span class="ti">🔋</span>Energie</button>
     <button data-go="me"><span class="ti">🙂</span>Ich</button>
   </nav>
@@ -226,6 +208,7 @@
 
 <script src="data/predictor.js"></script>
 <script src="data/praxis.js"></script>
+<script src="data/weg.js"></script>
 <script src="data/lessons.js"></script>
 <script src="data/alltag.js"></script>
 <script src="data/verstehen.js"></script>
